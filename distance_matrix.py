@@ -1,13 +1,33 @@
 import csv
 import time
 import requests
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 GOOGLE_API_KEY = "AIzaSyAnkSa_iZRgtY1ofYF_FAcgckAZD3Mqeqk"
 
+TZ = ZoneInfo("America/Los_Angeles")
+
+# weekday(): Mon=0 Tue=1 Wed=2 Thu=3 Fri=4 Sat=5 Sun=6
 DESTINATIONS = {
-    "Friend 1 (Cumberland)": "41 Cumberland St, San Francisco, CA 94110",
-    "Friend 2 (Larkspur)": "930 Larkspur Rd, Oakland, CA 94610",
-    "Vic Work (Oyster Point)": "354 Oyster Point Blvd, South San Francisco, CA 94080",
+    "Friend 1 (Cumberland)": {
+        "address": "41 Cumberland St, San Francisco, CA 94110",
+        "weekdays": [1],       # Tuesday
+        "hour": 17,
+        "minute": 0,
+    },
+    "Friend 2 (Larkspur)": {
+        "address": "930 Larkspur Rd, Oakland, CA 94610",
+        "weekdays": [5],       # Saturday
+        "hour": 10,
+        "minute": 0,
+    },
+    "Vic Work (Oyster Point)": {
+        "address": "354 Oyster Point Blvd, South San Francisco, CA 94080",
+        "weekdays": [0, 1, 2, 3, 4],  # Mon–Fri
+        "hour": 6,
+        "minute": 30,
+    },
 }
 
 MODES = ["driving", "walking", "transit"]
@@ -24,39 +44,97 @@ OUTPUT_CSV = "listings_with_distances.csv"
 DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
 
 
-def fetch_distances(origins: list[str], destinations: list[str], mode: str) -> dict:
+def next_departure_timestamp(weekdays: list[int], hour: int, minute: int) -> int:
+    """Return Unix timestamp of the next upcoming weekday at the given local time."""
+    now = datetime.now(TZ)
+    candidates = []
+    for wd in weekdays:
+        days_ahead = wd - now.weekday()
+        if days_ahead < 0 or (
+            days_ahead == 0
+            and (now.hour > hour or (now.hour == hour and now.minute >= minute))
+        ):
+            days_ahead += 7
+        target = (now + timedelta(days=days_ahead)).replace(
+            hour=hour, minute=minute, second=0, microsecond=0
+        )
+        candidates.append(target)
+    return int(min(candidates).timestamp())
+
+
+def fetch_distances(
+    origins: list[str],
+    destinations: list[str],
+    mode: str,
+    departure_times: list[int] | None = None,
+) -> dict:
     """
     Returns { origin: { destination: {"distance_km": float, "duration_min": float} } }
+    departure_times is a per-destination list of Unix timestamps (ignored for walking).
     Batches origins in groups of 25 (API limit).
     """
     results = {o: {} for o in origins}
 
     for i in range(0, len(origins), 25):
         batch = origins[i : i + 25]
-        params = {
-            "origins": "|".join(batch),
-            "destinations": "|".join(destinations),
-            "mode": mode,
-            "key": GOOGLE_API_KEY,
-        }
-        resp = requests.get(DISTANCE_MATRIX_URL, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
 
-        if data["status"] != "OK":
-            raise RuntimeError(f"Distance Matrix API error ({mode}): {data['status']}")
-
-        for row_idx, row in enumerate(data["rows"]):
-            origin = batch[row_idx]
-            for col_idx, element in enumerate(row["elements"]):
-                dest = destinations[col_idx]
-                if element["status"] == "OK":
-                    results[origin][dest] = {
-                        "distance_km": round(element["distance"]["value"] / 1000, 2),
-                        "duration_min": round(element["duration"]["value"] / 60, 1),
-                    }
-                else:
-                    results[origin][dest] = {"distance_km": None, "duration_min": None}
+        # Each destination may have a different departure time, so query one dest at a time
+        # when departure_times are set; otherwise batch all destinations together.
+        if departure_times and mode != "walking":
+            for col_idx, (dest, dep_ts) in enumerate(zip(destinations, departure_times)):
+                params = {
+                    "origins": "|".join(batch),
+                    "destinations": dest,
+                    "mode": mode,
+                    "departure_time": dep_ts,
+                    "key": GOOGLE_API_KEY,
+                }
+                if mode == "driving":
+                    params["traffic_model"] = "best_guess"
+                resp = requests.get(DISTANCE_MATRIX_URL, params=params, timeout=10)
+                resp.raise_for_status()
+                data = resp.json()
+                if data["status"] != "OK":
+                    raise RuntimeError(f"API error ({mode}): {data['status']}")
+                for row_idx, row in enumerate(data["rows"]):
+                    origin = batch[row_idx]
+                    element = row["elements"][0]
+                    if element["status"] == "OK":
+                        duration_key = (
+                            "duration_in_traffic"
+                            if mode == "driving" and "duration_in_traffic" in element
+                            else "duration"
+                        )
+                        results[origin][dest] = {
+                            "distance_km": round(element["distance"]["value"] / 1000, 2),
+                            "duration_min": round(element[duration_key]["value"] / 60, 1),
+                        }
+                    else:
+                        results[origin][dest] = {"distance_km": None, "duration_min": None}
+                time.sleep(0.1)
+        else:
+            params = {
+                "origins": "|".join(batch),
+                "destinations": "|".join(destinations),
+                "mode": mode,
+                "key": GOOGLE_API_KEY,
+            }
+            resp = requests.get(DISTANCE_MATRIX_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            if data["status"] != "OK":
+                raise RuntimeError(f"API error ({mode}): {data['status']}")
+            for row_idx, row in enumerate(data["rows"]):
+                origin = batch[row_idx]
+                for col_idx, element in enumerate(row["elements"]):
+                    dest = destinations[col_idx]
+                    if element["status"] == "OK":
+                        results[origin][dest] = {
+                            "distance_km": round(element["distance"]["value"] / 1000, 2),
+                            "duration_min": round(element["duration"]["value"] / 60, 1),
+                        }
+                    else:
+                        results[origin][dest] = {"distance_km": None, "duration_min": None}
 
         if i + 25 < len(origins):
             time.sleep(0.2)
@@ -72,15 +150,22 @@ def main():
 
     origins = [row["Address"] for row in rows]
     dest_names = list(DESTINATIONS.keys())
-    dest_addrs = list(DESTINATIONS.values())
+    dest_addrs = [v["address"] for v in DESTINATIONS.values()]
+    departure_times = [
+        next_departure_timestamp(v["weekdays"], v["hour"], v["minute"])
+        for v in DESTINATIONS.values()
+    ]
 
-    # Collect results per mode
+    # Print the departure times being used
+    for name, ts in zip(dest_names, departure_times):
+        dt = datetime.fromtimestamp(ts, TZ)
+        print(f"  {name}: {dt.strftime('%A %Y-%m-%d %H:%M %Z')}")
+
     all_results: dict[str, dict] = {}
     for mode in MODES:
         print(f"Fetching {MODE_LABEL[mode]} distances for {len(origins)} listings...")
-        all_results[mode] = fetch_distances(origins, dest_addrs, mode)
+        all_results[mode] = fetch_distances(origins, dest_addrs, mode, departure_times)
 
-    # Build extra column names: grouped by destination, then mode
     extra_fields = []
     for dest_name in dest_names:
         for mode in MODES:
@@ -94,7 +179,7 @@ def main():
         writer.writeheader()
         for row in rows:
             address = row["Address"]
-            for dest_name, dest_addr in DESTINATIONS.items():
+            for dest_name, dest_addr in zip(dest_names, dest_addrs):
                 for mode in MODES:
                     info = all_results[mode].get(address, {}).get(dest_addr, {})
                     row[f"{dest_name} - {MODE_LABEL[mode]} Distance (km)"] = info.get("distance_km", "N/A")
