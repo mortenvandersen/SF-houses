@@ -38,7 +38,7 @@ MODE_LABEL = {
     "transit": "Transit",
 }
 
-INPUT_CSV = "listings.csv"
+INPUT_CSV = "Z-Real-Estate-Scraper-Data-Rental Listings-2026-04-16.csv"
 OUTPUT_CSV = "listings_with_distances.csv"
 
 DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
@@ -142,11 +142,31 @@ def fetch_distances(
     return results
 
 
+def already_processed_addresses() -> set[str]:
+    """Return addresses already present in the output CSV, or empty set if it doesn't exist."""
+    try:
+        with open(OUTPUT_CSV, newline="", encoding="utf-8") as f:
+            return {row["Address"] for row in csv.DictReader(f) if row.get("Address")}
+    except FileNotFoundError:
+        return set()
+
+
 def main():
     with open(INPUT_CSV, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        rows = list(reader)
+        all_rows = [r for r in reader if r.get("Address", "").strip()]
         fieldnames = list(reader.fieldnames or [])
+
+    done = already_processed_addresses()
+    rows = [r for r in all_rows if r["Address"] not in done]
+
+    print(f"Source listings : {len(all_rows)}")
+    print(f"Already done    : {len(done)}")
+    print(f"To process      : {len(rows)}")
+
+    if not rows:
+        print("Nothing new to process.")
+        return
 
     origins = [row["Address"] for row in rows]
     dest_names = list(DESTINATIONS.keys())
@@ -174,9 +194,11 @@ def main():
 
     out_fields = fieldnames + extra_fields
 
-    with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
+    write_header = not done  # only write header when starting fresh
+    with open(OUTPUT_CSV, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=out_fields)
-        writer.writeheader()
+        if write_header:
+            writer.writeheader()
         for row in rows:
             address = row["Address"]
             for dest_name, dest_addr in zip(dest_names, dest_addrs):
