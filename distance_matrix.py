@@ -2,11 +2,20 @@ import csv
 import time
 import requests
 
-GOOGLE_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY"
+GOOGLE_API_KEY = "AIzaSyAnkSa_iZRgtY1ofYF_FAcgckAZD3Mqeqk"
 
-FRIEND_ADDRESSES = {
-    "Friend 1": "[friend 1 address]",
-    "Friend 2": "[friend 2 address]",
+DESTINATIONS = {
+    "Friend 1 (Cumberland)": "41 Cumberland St, San Francisco, CA 94110",
+    "Friend 2 (Larkspur)": "930 Larkspur Rd, Oakland, CA 94610",
+    "Vic Work (Oyster Point)": "354 Oyster Point Blvd, South San Francisco, CA 94080",
+}
+
+MODES = ["driving", "walking", "transit"]
+
+MODE_LABEL = {
+    "driving": "Drive",
+    "walking": "Walk",
+    "transit": "Transit",
 }
 
 INPUT_CSV = "listings.csv"
@@ -15,10 +24,10 @@ OUTPUT_CSV = "listings_with_distances.csv"
 DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
 
 
-def get_driving_distances(origins: list[str], destinations: list[str]) -> dict:
+def fetch_distances(origins: list[str], destinations: list[str], mode: str) -> dict:
     """
-    Returns a dict: { origin: { destination: {"distance_km": float, "duration_min": float} } }
-    Batches up to 25 origins per request (API limit).
+    Returns { origin: { destination: {"distance_km": float, "duration_min": float} } }
+    Batches origins in groups of 25 (API limit).
     """
     results = {o: {} for o in origins}
 
@@ -27,7 +36,7 @@ def get_driving_distances(origins: list[str], destinations: list[str]) -> dict:
         params = {
             "origins": "|".join(batch),
             "destinations": "|".join(destinations),
-            "mode": "driving",
+            "mode": mode,
             "key": GOOGLE_API_KEY,
         }
         resp = requests.get(DISTANCE_MATRIX_URL, params=params, timeout=10)
@@ -35,7 +44,7 @@ def get_driving_distances(origins: list[str], destinations: list[str]) -> dict:
         data = resp.json()
 
         if data["status"] != "OK":
-            raise RuntimeError(f"Distance Matrix API error: {data['status']}")
+            raise RuntimeError(f"Distance Matrix API error ({mode}): {data['status']}")
 
         for row_idx, row in enumerate(data["rows"]):
             origin = batch[row_idx]
@@ -47,13 +56,10 @@ def get_driving_distances(origins: list[str], destinations: list[str]) -> dict:
                         "duration_min": round(element["duration"]["value"] / 60, 1),
                     }
                 else:
-                    results[origin][dest] = {
-                        "distance_km": None,
-                        "duration_min": None,
-                    }
+                    results[origin][dest] = {"distance_km": None, "duration_min": None}
 
         if i + 25 < len(origins):
-            time.sleep(0.2)  # stay within QPS limits
+            time.sleep(0.2)
 
     return results
 
@@ -62,33 +68,37 @@ def main():
     with open(INPUT_CSV, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-        fieldnames = reader.fieldnames or []
+        fieldnames = list(reader.fieldnames or [])
 
     origins = [row["Address"] for row in rows]
-    destinations = list(FRIEND_ADDRESSES.values())
-    friend_names = list(FRIEND_ADDRESSES.keys())
+    dest_names = list(DESTINATIONS.keys())
+    dest_addrs = list(DESTINATIONS.values())
 
-    print(f"Fetching distances for {len(origins)} listings to {len(destinations)} destinations...")
-    distances = get_driving_distances(origins, destinations)
+    # Collect results per mode
+    all_results: dict[str, dict] = {}
+    for mode in MODES:
+        print(f"Fetching {MODE_LABEL[mode]} distances for {len(origins)} listings...")
+        all_results[mode] = fetch_distances(origins, dest_addrs, mode)
 
+    # Build extra column names: grouped by destination, then mode
     extra_fields = []
-    for name in friend_names:
-        extra_fields += [
-            f"{name} Distance (km)",
-            f"{name} Drive Time (min)",
-        ]
+    for dest_name in dest_names:
+        for mode in MODES:
+            extra_fields.append(f"{dest_name} - {MODE_LABEL[mode]} Distance (km)")
+            extra_fields.append(f"{dest_name} - {MODE_LABEL[mode]} Time (min)")
 
-    out_fields = list(fieldnames) + extra_fields
+    out_fields = fieldnames + extra_fields
 
     with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=out_fields)
         writer.writeheader()
         for row in rows:
             address = row["Address"]
-            for name, dest in FRIEND_ADDRESSES.items():
-                info = distances.get(address, {}).get(dest, {})
-                row[f"{name} Distance (km)"] = info.get("distance_km", "N/A")
-                row[f"{name} Drive Time (min)"] = info.get("duration_min", "N/A")
+            for dest_name, dest_addr in DESTINATIONS.items():
+                for mode in MODES:
+                    info = all_results[mode].get(address, {}).get(dest_addr, {})
+                    row[f"{dest_name} - {MODE_LABEL[mode]} Distance (km)"] = info.get("distance_km", "N/A")
+                    row[f"{dest_name} - {MODE_LABEL[mode]} Time (min)"] = info.get("duration_min", "N/A")
             writer.writerow(row)
 
     print(f"Done. Results written to {OUTPUT_CSV}")
