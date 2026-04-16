@@ -14,7 +14,7 @@ from pathlib import Path
 
 INPUT_CSV = "listings_with_distances.csv"
 TEMPLATE_HTML = "dashboard.template.html"
-OUTPUT_HTML = "dashboard.html"
+OUTPUT_HTML = "index.html"
 
 # Friend / work destination names, as declared in distance_matrix.py.
 DESTINATIONS = [
