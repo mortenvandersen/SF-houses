@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SF Rentals Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #171d26;
+    --panel-2: #1f2733;
+    --border: #2a3442;
+    --text: #e6ebf2;
+    --muted: #8a97a8;
+    --accent: #5ab0ff;
+    --accent-2: #7de3b0;
+    --warn: #ffb347;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px; line-height: 1.45; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: linear-gradient(180deg, #0f1419 0%, #0f1419cc 100%);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+  }
+  .title-row { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .title-row h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
+  .stats { display: flex; gap: 18px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+  .stats b { color: var(--text); font-weight: 600; }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px 14px;
+    margin-top: 10px;
+  }
+  .control { display: flex; flex-direction: column; gap: 4px; }
+  .control label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .control input, .control select {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; font-size: 13px; outline: none;
+  }
+  .control input:focus, .control select:focus { border-color: var(--accent); }
+  .control.range-row { flex-direction: row; gap: 6px; align-items: center; }
+  .control.range-row .stack { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .control.range-row input { width: 100%; }
+
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+    user-select: none;
+  }
+  .chip.active { background: var(--accent); color: #081018; border-color: var(--accent); font-weight: 600; }
+
+  main { padding: 18px 20px 40px; }
+
+  .grid {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 14px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: border-color 120ms ease, transform 120ms ease;
+  }
+  .card:hover { border-color: #3b4a5f; }
+
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .addr { font-weight: 600; font-size: 14px; line-height: 1.35; }
+  .addr .zip { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
+  .price { font-size: 20px; font-weight: 700; color: var(--accent-2); white-space: nowrap; }
+  .price small { font-size: 12px; color: var(--muted); font-weight: 400; display: block; text-align: right; }
+
+  .facts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fact {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 8px; font-size: 12px; color: var(--muted);
+  }
+  .fact b { color: var(--text); font-weight: 600; }
+
+  .commute-summary { display: flex; flex-direction: column; gap: 4px; }
+  .commute-line {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+    font-size: 12px;
+    align-items: baseline;
+  }
+  .commute-line .dest { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .commute-line .m { font-variant-numeric: tabular-nums; color: var(--text); min-width: 42px; text-align: right; }
+  .commute-line .m .unit { color: var(--muted); font-size: 11px; }
+  .commute-line .m.na { color: #4a5566; }
+
+  .scores { display: flex; gap: 6px; flex-wrap: wrap; }
+  .score {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--muted);
+  }
+  .score b { color: var(--text); }
+  .score.good b { color: var(--accent-2); }
+  .score.mid b { color: var(--warn); }
+  .score.bad b { color: var(--danger); }
+
+  .actions { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-top: 2px; }
+  .actions .spacer { flex: 1; }
+  .link-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  .link-btn:hover { color: var(--text); border-color: #3b4a5f; }
+
+  .details { display: none; border-top: 1px solid var(--border); padding-top: 10px; gap: 10px; flex-direction: column; }
+  .card.open .details { display: flex; }
+  .card.open .toggle::after { content: "\u25B2"; }
+  .toggle::after { content: "\u25BC"; margin-left: 6px; font-size: 10px; }
+
+  .commute-grid {
+    display: grid;
+    grid-template-columns: 1fr repeat(3, auto);
+    gap: 4px 12px;
+    font-size: 12px;
+    align-items: baseline;
+  }
+  .commute-grid .h { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .commute-grid .v { font-variant-numeric: tabular-nums; text-align: right; }
+  .commute-grid .v.na { color: #4a5566; }
+
+  .desc {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; font-size: 12.5px; color: #cdd5e0; white-space: pre-wrap;
+    max-height: 260px; overflow-y: auto;
+  }
+  .desc.empty { color: var(--muted); font-style: italic; }
+
+  .kv-grid {
+    display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
+    font-size: 12px;
+  }
+  .kv-grid .k { color: var(--muted); }
+
+  .count-line { color: var(--muted); font-size: 12px; margin: 10px 0 14px; }
+  .empty-state {
+    text-align: center; color: var(--muted); padding: 60px 20px;
+    border: 1px dashed var(--border); border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="title-row">
+    <h1>SF Rentals Dashboard</h1>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div class="controls">
+    <div class="control">
+      <label>Search</label>
+      <input id="f-search" type="text" placeholder="Address, neighborhood, broker…">
+    </div>
+    <div class="control range-row">
+      <div class="stack">
+        <label>Min price</label>
+        <input id="f-price-min" type="number" min="0" step="100" placeholder="0">
+      </div>
+      <div class="stack">
+        <label>Max price</label>
+        <input id="f-price-max" type="number" min="0" step="100" placeholder="any">
+      </div>
+    </div>
+    <div class="control">
+      <label>Min beds</label>
+      <select id="f-beds">
+        <option value="">Any</option>
+        <option value="1">1+</option>
+        <option value="2">2+</option>
+        <option value="3">3+</option>
+        <option value="4">4+</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Min baths</label>
+      <select id="f-baths">
+        <option value="">Any</option>
+        <option value="1">1+</option>
+        <option value="2">2+</option>
+        <option value="3">3+</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Max commute to Vic Work (Drive)</label>
+      <select id="f-max-work">
+        <option value="">Any</option>
+        <option value="15">≤ 15 min</option>
+        <option value="20">≤ 20 min</option>
+        <option value="30">≤ 30 min</option>
+        <option value="45">≤ 45 min</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Sort by</label>
+      <select id="f-sort">
+        <option value="price-asc">Price ↑</option>
+        <option value="price-desc">Price ↓</option>
+        <option value="ppsf-asc">Price / sqft ↑</option>
+        <option value="work-drive-asc">Drive to Vic Work ↑</option>
+        <option value="work-transit-asc">Transit to Vic Work ↑</option>
+        <option value="cumberland-drive-asc">Drive to Friend 1 ↑</option>
+        <option value="larkspur-drive-asc">Drive to Friend 2 ↑</option>
+        <option value="walkscore-desc">Walk Score ↓</option>
+        <option value="sqft-desc">Sqft ↓</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Type</label>
+      <div class="chip-row" id="f-type"></div>
+    </div>
+    <div class="control">
+      <label>Options</label>
+      <div class="chip-row">
+        <span class="chip" id="f-hide-units">Hide building-level duplicates</span>
+      </div>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="count-line" id="count-line"></div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script>
+const RAW_DATA = /*__DATA_PLACEHOLDER__*/null;
+const META = /*__META_PLACEHOLDER__*/null;
+
+const fmtPrice = (n) => n == null ? "—" :
+  "$" + Math.round(n).toLocaleString();
+const fmtMin = (n) => (n == null || isNaN(n)) ? null : (n < 10 ? n.toFixed(1) : Math.round(n).toString());
+const fmtKm = (n) => (n == null || isNaN(n)) ? null : n.toFixed(1);
+
+function num(row, key) {
+  const v = row["_num:" + key];
+  return (v === undefined || v === null) ? null : v;
+}
+
+function scoreClass(v) {
+  if (v == null) return "";
+  if (v >= 80) return "good";
+  if (v >= 60) return "mid";
+  return "bad";
+}
+
+const state = {
+  search: "",
+  priceMin: null,
+  priceMax: null,
+  minBeds: null,
+  minBaths: null,
+  maxWorkDrive: null,
+  type: "all",
+  hideUnits: false,
+  sort: "price-asc",
+  openIds: new Set(),
+};
+
+// Build stable id per row (URL or fallback to index).
+RAW_DATA.forEach((r, i) => { r._id = r["Listing URL"] || ("row-" + i); });
+
+function computeStats(rows) {
+  const prices = rows.map((r) => r._priceValue).filter((v) => v != null);
+  prices.sort((a, b) => a - b);
+  const median = prices.length ? prices[Math.floor(prices.length / 2)] : null;
+  const avg = prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : null;
+  return {
+    count: rows.length,
+    median, avg,
+    minP: prices[0] ?? null,
+    maxP: prices[prices.length - 1] ?? null,
+  };
+}
+
+function applyFilters() {
+  const q = state.search.trim().toLowerCase();
+  let rows = RAW_DATA.filter((r) => {
+    if (q) {
+      const hay = [
+        r["Address"], r["Short Address"], r["Zip"],
+        r["Broker Name"], r["Listed By (Premium Data)"],
+        r["Subdivision (Premium Data)"],
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    const p = r._priceValue;
+    if (state.priceMin != null && (p == null || p < state.priceMin)) return false;
+    if (state.priceMax != null && (p == null || p > state.priceMax)) return false;
+    if (state.minBeds != null) {
+      const b = num(r, "Beds");
+      if (b == null || b < state.minBeds) return false;
+    }
+    if (state.minBaths != null) {
+      const b = num(r, "Baths");
+      if (b == null || b < state.minBaths) return false;
+    }
+    if (state.maxWorkDrive != null) {
+      const t = num(r, "Vic Work (Oyster Point) - Drive Time (min)");
+      if (t == null || t > state.maxWorkDrive) return false;
+    }
+    if (state.type !== "all") {
+      if ((r["Type"] || "").toUpperCase() !== state.type) return false;
+    }
+    return true;
+  });
+
+  if (state.hideUnits) {
+    const seen = new Set();
+    rows = rows.filter((r) => {
+      const key = r["Short Address"] || r["Address"];
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  const cmpBy = (key) => (a, b) => {
+    const va = num(a, key); const vb = num(b, key);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return va - vb;
+  };
+  const byPrice = (a, b) => {
+    const va = a._priceValue; const vb = b._priceValue;
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return va - vb;
+  };
+
+  switch (state.sort) {
+    case "price-asc": rows.sort(byPrice); break;
+    case "price-desc": rows.sort((a, b) => -byPrice(a, b)); break;
+    case "ppsf-asc": rows.sort((a, b) => {
+      const va = a._ppsfValue; const vb = b._ppsfValue;
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return va - vb;
+    }); break;
+    case "work-drive-asc": rows.sort(cmpBy("Vic Work (Oyster Point) - Drive Time (min)")); break;
+    case "work-transit-asc": rows.sort(cmpBy("Vic Work (Oyster Point) - Transit Time (min)")); break;
+    case "cumberland-drive-asc": rows.sort(cmpBy("Friend 1 (Cumberland) - Drive Time (min)")); break;
+    case "larkspur-drive-asc": rows.sort(cmpBy("Friend 2 (Larkspur) - Drive Time (min)")); break;
+    case "walkscore-desc": rows.sort((a, b) => {
+      const va = num(a, "Walk Score (Premium Data)"); const vb = num(b, "Walk Score (Premium Data)");
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return vb - va;
+    }); break;
+    case "sqft-desc": rows.sort((a, b) => {
+      const va = num(a, "Footage"); const vb = num(b, "Footage");
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return vb - va;
+    }); break;
+  }
+
+  return rows;
+}
+
+function renderStats(visible) {
+  const totalStats = computeStats(RAW_DATA);
+  const vis = computeStats(visible);
+  const el = document.getElementById("stats");
+  const medianStr = vis.median != null ? fmtPrice(vis.median) : "—";
+  el.innerHTML = `
+    <span><b>${vis.count}</b> of ${totalStats.count} listings</span>
+    <span>Median <b>${medianStr}</b></span>
+    <span>Range <b>${fmtPrice(vis.minP)} – ${fmtPrice(vis.maxP)}</b></span>
+  `;
+}
+
+function commuteSummary(r) {
+  const minText = (v) => {
+    const s = fmtMin(v);
+    return s == null ? "—" : `${s}<span class="unit"> m</span>`;
+  };
+  const cellClass = (v) => v == null ? "m na" : "m";
+  return META.destinations.map((d) => {
+    const drive = num(r, `${d} - Drive Time (min)`);
+    const walk = num(r, `${d} - Walk Time (min)`);
+    const tr = num(r, `${d} - Transit Time (min)`);
+    const shortLabel = d.replace(/ \([^)]+\)$/, "");
+    return `<div class="commute-line" title="${escapeHtml(d)}">
+      <span class="dest">${escapeHtml(shortLabel)}</span>
+      <span class="${cellClass(drive)}" title="Drive">🚗 ${minText(drive)}</span>
+      <span class="${cellClass(tr)}" title="Transit">🚆 ${minText(tr)}</span>
+      <span class="${cellClass(walk)}" title="Walk">🚶 ${minText(walk)}</span>
+    </div>`;
+  }).join("");
+}
+
+function commuteFullGrid(r) {
+  const header = `
+    <div class="h"></div>
+    <div class="h" style="text-align:right">Drive</div>
+    <div class="h" style="text-align:right">Transit</div>
+    <div class="h" style="text-align:right">Walk</div>
+  `;
+  const body = META.destinations.map((d) => {
+    const cell = (mode) => {
+      const t = num(r, `${d} - ${mode} Time (min)`);
+      const km = num(r, `${d} - ${mode} Distance (km)`);
+      if (t == null) return `<div class="v na">—</div>`;
+      const kmStr = km != null ? ` <span style="color:var(--muted);font-size:11px">(${fmtKm(km)} km)</span>` : "";
+      return `<div class="v">${fmtMin(t)} min${kmStr}</div>`;
+    };
+    return `
+      <div style="color:var(--text)">${d}</div>
+      ${cell("Drive")}
+      ${cell("Transit")}
+      ${cell("Walk")}
+    `;
+  }).join("");
+  return `<div class="commute-grid">${header}${body}</div>`;
+}
+
+function scoreChips(r) {
+  const items = [
+    ["Walk", num(r, "Walk Score (Premium Data)")],
+    ["Transit", num(r, "Transit Score (Premium Data)")],
+    ["Bike", num(r, "Bike Score (Premium Data)")],
+  ];
+  return items.map(([label, v]) => {
+    if (v == null) return "";
+    return `<span class="score ${scoreClass(v)}">${label} <b>${Math.round(v)}</b></span>`;
+  }).join("");
+}
+
+function description(r) {
+  const raw = (r["Description (Premium Data)"] || "").trim();
+  if (!raw) return `<div class="desc empty">No description available.</div>`;
+  return `<div class="desc">${escapeHtml(raw)}</div>`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function kvRows(r) {
+  const entries = [
+    ["Type", r["Type"]],
+    ["Status", r["Status"]],
+    ["Year built", r["Year Built (Premium Data)"]],
+    ["Zestimate", r["Zestimate"]],
+    ["Rent Zestimate", r["Rent Zestimate"]],
+    ["MLS Id", r["MLS Id"]],
+    ["Broker", r["Broker Name"] || r["Listed By (Premium Data)"]],
+    ["Neighborhood", r["Subdivision (Premium Data)"]],
+    ["Date scraped", r["Date Scraped"]],
+  ].filter(([, v]) => v && String(v).trim() !== "");
+  if (!entries.length) return "";
+  return `<div class="kv-grid">` +
+    entries.map(([k, v]) => `<div class="k">${k}</div><div>${escapeHtml(String(v))}</div>`).join("") +
+    `</div>`;
+}
+
+function mapLink(r) {
+  const lat = num(r, "Latitude"), lng = num(r, "Longitude");
+  if (lat == null || lng == null) return "";
+  return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" class="link-btn">Map</a>`;
+}
+
+function renderCard(r) {
+  const beds = num(r, "Beds");
+  const baths = num(r, "Baths");
+  const sqft = num(r, "Footage");
+  const ppsf = r["Price Per Sq. Ft."] || "";
+  const url = r["Listing URL"] || "";
+  const short = r["Short Address"] || r["Address"] || "(no address)";
+  const zip = r["Zip"] || "";
+  const isOpen = state.openIds.has(r._id);
+  const facts = [
+    beds != null ? `<span class="fact"><b>${beds}</b> bd</span>` : "",
+    baths != null ? `<span class="fact"><b>${baths}</b> ba</span>` : "",
+    sqft != null ? `<span class="fact"><b>${sqft.toLocaleString()}</b> sqft</span>` : "",
+    ppsf ? `<span class="fact">${escapeHtml(ppsf)}/sqft</span>` : "",
+    r["Type"] ? `<span class="fact">${escapeHtml(r["Type"])}</span>` : "",
+  ].filter(Boolean).join("");
+
+  return `
+  <article class="card ${isOpen ? "open" : ""}" data-id="${escapeHtml(r._id)}">
+    <div class="card-head">
+      <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(zip)}</span></div>
+      <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
+    </div>
+    <div class="facts">${facts}</div>
+    <div class="scores">${scoreChips(r)}</div>
+    <div class="commute-summary">${commuteSummary(r)}</div>
+    <div class="actions">
+      ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
+      ${mapLink(r)}
+      <div class="spacer"></div>
+      <button class="link-btn toggle" data-toggle="${escapeHtml(r._id)}">Details</button>
+    </div>
+    <div class="details">
+      ${commuteFullGrid(r)}
+      ${kvRows(r)}
+      ${description(r)}
+    </div>
+  </article>`;
+}
+
+function render() {
+  const visible = applyFilters();
+  renderStats(visible);
+  const grid = document.getElementById("grid");
+  const countEl = document.getElementById("count-line");
+  countEl.textContent = `Showing ${visible.length} listing${visible.length === 1 ? "" : "s"}.`;
+  if (!visible.length) {
+    grid.innerHTML = `<div class="empty-state">No listings match your filters.</div>`;
+    return;
+  }
+  grid.innerHTML = visible.map(renderCard).join("");
+  grid.querySelectorAll("[data-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-toggle");
+      if (state.openIds.has(id)) state.openIds.delete(id); else state.openIds.add(id);
+      render();
+    });
+  });
+}
+
+function populateTypeChips() {
+  const types = new Set();
+  RAW_DATA.forEach((r) => { if (r["Type"]) types.add(r["Type"]); });
+  const el = document.getElementById("f-type");
+  const chips = [["all", "All"]].concat(Array.from(types).map((t) => [t, t]));
+  el.innerHTML = chips.map(([val, label]) =>
+    `<span class="chip ${state.type === val ? "active" : ""}" data-type="${escapeHtml(val)}">${escapeHtml(label)}</span>`
+  ).join("");
+  el.querySelectorAll("[data-type]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      state.type = chip.getAttribute("data-type");
+      populateTypeChips();
+      render();
+    });
+  });
+}
+
+function wireControls() {
+  const bind = (id, handler) => document.getElementById(id).addEventListener("input", handler);
+  bind("f-search", (e) => { state.search = e.target.value; render(); });
+  bind("f-price-min", (e) => { state.priceMin = e.target.value ? Number(e.target.value) : null; render(); });
+  bind("f-price-max", (e) => { state.priceMax = e.target.value ? Number(e.target.value) : null; render(); });
+  bind("f-beds", (e) => { state.minBeds = e.target.value ? Number(e.target.value) : null; render(); });
+  bind("f-baths", (e) => { state.minBaths = e.target.value ? Number(e.target.value) : null; render(); });
+  bind("f-max-work", (e) => { state.maxWorkDrive = e.target.value ? Number(e.target.value) : null; render(); });
+  bind("f-sort", (e) => { state.sort = e.target.value; render(); });
+
+  const hide = document.getElementById("f-hide-units");
+  hide.addEventListener("click", () => {
+    state.hideUnits = !state.hideUnits;
+    hide.classList.toggle("active", state.hideUnits);
+    render();
+  });
+}
+
+populateTypeChips();
+wireControls();
+render();
+</script>
+</body>
+</html>
