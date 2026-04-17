@@ -188,6 +188,32 @@
   }
   .other-score b { color: var(--text); font-weight: 600; }
   .score-hint { font-size: 11px; color: var(--muted); font-style: italic; }
+
+  .commute-filters {
+    margin-top: 10px;
+    display: flex; flex-direction: column; gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .commute-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) 110px 140px;
+    gap: 10px;
+    align-items: center;
+  }
+  .commute-row .dest-label {
+    font-size: 12px; color: var(--text); font-weight: 600;
+  }
+  .commute-row select {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 8px; font-size: 13px; outline: none;
+    width: 100%;
+  }
+  .commute-row select:focus { border-color: var(--accent); }
+  @media (max-width: 600px) {
+    .commute-row { grid-template-columns: 1fr 1fr; }
+    .commute-row .dest-label { grid-column: 1 / -1; }
+  }
 </style>
 </head>
 <body>
@@ -242,31 +268,6 @@
       </select>
     </div>
     <div class="control">
-      <label>Destination</label>
-      <select id="f-destination">
-        <option value="">Any</option>
-      </select>
-    </div>
-    <div class="control">
-      <label>By</label>
-      <select id="f-mode">
-        <option value="Drive">Drive</option>
-        <option value="Transit">Transit</option>
-        <option value="Walk">Walk</option>
-      </select>
-    </div>
-    <div class="control">
-      <label>Max minutes</label>
-      <select id="f-max-minutes">
-        <option value="">Any</option>
-        <option value="15">≤ 15 min</option>
-        <option value="20">≤ 20 min</option>
-        <option value="30">≤ 30 min</option>
-        <option value="45">≤ 45 min</option>
-        <option value="60">≤ 60 min</option>
-      </select>
-    </div>
-    <div class="control">
       <label>Sort by</label>
       <select id="f-sort">
         <option value="price-asc">Price ↑</option>
@@ -278,6 +279,7 @@
       <input id="scorer-name" type="text" placeholder="e.g. Morten" autocomplete="off">
     </div>
   </div>
+  <div class="commute-filters" id="commute-filters"></div>
 </header>
 <main>
   <div class="count-line" id="count-line"></div>
@@ -317,9 +319,8 @@ const state = {
   minBeds: null,
   minBaths: null,
   minStars: null,
-  destination: "",
-  mode: "Drive",
-  maxMinutes: null,
+  // destination -> { mode: "Drive"|"Transit"|"Walk", maxMinutes: number|null }
+  commute: {},
   sort: "price-asc",
   openIds: new Set(),
   scorer: (localStorage.getItem("sf-scorer") || "").trim(),
@@ -402,9 +403,11 @@ function applyFilters() {
       const myScore = state.scores.get(r._id)?.get(state.scorer)?.score ?? 0;
       if (myScore < state.minStars) return false;
     }
-    if (state.destination && state.maxMinutes != null) {
-      const t = num(r, `${state.destination} - ${state.mode} Time (min)`);
-      if (t == null || t > state.maxMinutes) return false;
+    for (const dest of META.destinations) {
+      const cfg = state.commute[dest];
+      if (!cfg || cfg.maxMinutes == null) continue;
+      const t = num(r, `${dest} - ${cfg.mode} Time (min)`);
+      if (t == null || t > cfg.maxMinutes) return false;
     }
     return true;
   });
@@ -626,11 +629,40 @@ function render() {
   });
 }
 
-function populateDestinations() {
-  const sel = document.getElementById("f-destination");
-  const opts = ['<option value="">Any</option>']
-    .concat(META.destinations.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`));
-  sel.innerHTML = opts.join("");
+const MAX_MIN_OPTIONS = [
+  ["", "Any"], ["15", "≤ 15 min"], ["20", "≤ 20 min"],
+  ["30", "≤ 30 min"], ["45", "≤ 45 min"], ["60", "≤ 60 min"],
+];
+const MODE_OPTIONS = ["Drive", "Transit", "Walk"];
+
+function populateCommuteRows() {
+  const wrap = document.getElementById("commute-filters");
+  wrap.innerHTML = META.destinations.map((d) => {
+    const cfg = state.commute[d] || { mode: "Drive", maxMinutes: null };
+    const modeOpts = MODE_OPTIONS.map((m) =>
+      `<option value="${m}"${cfg.mode === m ? " selected" : ""}>${m}</option>`
+    ).join("");
+    const minOpts = MAX_MIN_OPTIONS.map(([v, label]) =>
+      `<option value="${v}"${String(cfg.maxMinutes ?? "") === v ? " selected" : ""}>${label}</option>`
+    ).join("");
+    const safe = escapeHtml(d);
+    return `
+      <div class="commute-row">
+        <div class="dest-label">${safe}</div>
+        <select data-dest="${safe}" data-role="mode">${modeOpts}</select>
+        <select data-dest="${safe}" data-role="max">${minOpts}</select>
+      </div>`;
+  }).join("");
+  wrap.querySelectorAll("select[data-dest]").forEach((sel) => {
+    sel.addEventListener("input", (e) => {
+      const dest = sel.getAttribute("data-dest");
+      const role = sel.getAttribute("data-role");
+      if (!state.commute[dest]) state.commute[dest] = { mode: "Drive", maxMinutes: null };
+      if (role === "mode") state.commute[dest].mode = e.target.value;
+      else state.commute[dest].maxMinutes = e.target.value ? Number(e.target.value) : null;
+      render();
+    });
+  });
 }
 
 function wireControls() {
@@ -641,9 +673,6 @@ function wireControls() {
   bind("f-beds", (e) => { state.minBeds = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-baths", (e) => { state.minBaths = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-min-stars", (e) => { state.minStars = e.target.value ? Number(e.target.value) : null; render(); });
-  bind("f-destination", (e) => { state.destination = e.target.value; render(); });
-  bind("f-mode", (e) => { state.mode = e.target.value; render(); });
-  bind("f-max-minutes", (e) => { state.maxMinutes = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-sort", (e) => { state.sort = e.target.value; render(); });
 
   const scorer = document.getElementById("scorer-name");
@@ -655,7 +684,10 @@ function wireControls() {
   });
 }
 
-populateDestinations();
+META.destinations.forEach((d) => {
+  state.commute[d] = { mode: "Drive", maxMinutes: null };
+});
+populateCommuteRows();
 wireControls();
 render();
 loadScores().then(render);
