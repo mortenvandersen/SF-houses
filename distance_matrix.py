@@ -1,11 +1,12 @@
 import csv
+import os
 import time
 import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-GOOGLE_API_KEY = "AIzaSyAnkSa_iZRgtY1ofYF_FAcgckAZD3Mqeqk"
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY") or "AIzaSyAnkSa_iZRgtY1ofYF_FAcgckAZD3Mqeqk"
 
 TZ = ZoneInfo("America/Los_Angeles")
 
