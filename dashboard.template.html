@@ -434,7 +434,11 @@ function findAll(obj, key) {
     if (Array.isArray(x)) { x.forEach(walk); return; }
     for (const k of Object.keys(x)) {
       if (k === key) acc.push(x[k]);
-      walk(x[k]);
+      let v = x[k];
+      if (typeof v === "string" && (v.startsWith("{") || v.startsWith("["))) {
+        try { v = JSON.parse(v); } catch (e) { continue; }
+      }
+      walk(v);
     }
   };
   walk(obj);
@@ -476,10 +480,10 @@ function extractExtras(raw) {
     .pop() || null;
 
   const parkingPieces = [];
-  for (const k of ["parkingFeatures", "parking_features", "parking"]) {
+  for (const k of ["parkingFeatures", "parking_features", "parking", "otherParking", "parkingInformation"]) {
     for (const v of findAll(raw, k)) {
       if (Array.isArray(v)) parkingPieces.push(...v.filter((x) => typeof x === "string"));
-      else if (typeof v === "string" && v.length < 120) parkingPieces.push(v);
+      else if (typeof v === "string" && v.length < 200) parkingPieces.push(v);
     }
   }
   const firstBool = (key) => findAll(raw, key).find((v) => typeof v === "boolean");
