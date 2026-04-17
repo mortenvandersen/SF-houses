@@ -178,6 +178,10 @@
     max-height: 260px; overflow-y: auto;
   }
   .desc.empty { color: var(--muted); font-style: italic; }
+  .desc-source {
+    font-size: 10px; color: var(--accent); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;
+  }
 
   .kv-grid {
     display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
@@ -371,6 +375,8 @@ const state = {
   scorer: SCORERS.includes(_storedScorer) ? _storedScorer : "",
   // listing_id -> { scorer -> { score, notes, updated_at } }
   scores: new Map(),
+  // listing_url -> { description, scraped_at }
+  extras: new Map(),
 };
 
 async function loadScores() {
@@ -383,6 +389,15 @@ async function loadScores() {
     if (!state.scores.has(row.listing_id)) state.scores.set(row.listing_id, new Map());
     state.scores.get(row.listing_id).set(row.scorer, row);
   }
+}
+
+async function loadExtras() {
+  const { data, error } = await db
+    .from("listing_extras")
+    .select("listing_url, description, scraped_at");
+  if (error) { console.error("loadExtras failed:", error); return; }
+  state.extras = new Map();
+  for (const row of data || []) state.extras.set(row.listing_url, row);
 }
 
 async function saveScore(listingId, newScore) {
@@ -567,9 +582,11 @@ function scoreChips(r) {
 }
 
 function description(r) {
-  const raw = (r["Description (Premium Data)"] || "").trim();
+  const scraped = (state.extras.get(r._id)?.description || "").trim();
+  const raw = scraped || (r["Description (Premium Data)"] || "").trim();
   if (!raw) return `<div class="desc empty">No description available.</div>`;
-  return `<div class="desc">${escapeHtml(raw)}</div>`;
+  const badge = scraped ? `<div class="desc-source">From Zillow listing page</div>` : "";
+  return `${badge}<div class="desc">${escapeHtml(raw)}</div>`;
 }
 
 function escapeHtml(s) {
@@ -776,7 +793,7 @@ META.destinations.forEach((d) => {
 populateCommuteRows();
 wireControls();
 render();
-loadScores().then(render);
+Promise.all([loadScores(), loadExtras()]).then(render);
 </script>
 </body>
 </html>
