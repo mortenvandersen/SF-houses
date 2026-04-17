@@ -183,6 +183,31 @@
     text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px;
   }
 
+  .extras-block {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    font-size: 12px;
+  }
+  .extras-header {
+    font-size: 10px; color: var(--accent); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .extras-row {
+    display: grid; grid-template-columns: 110px 1fr; gap: 10px;
+    align-items: start;
+  }
+  .extras-label { color: var(--muted); font-size: 11px; }
+  .extras-chip {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px; font-size: 11px;
+    margin-right: 4px; display: inline-block;
+  }
+  .extras-chip b { color: var(--text); font-weight: 600; }
+  .extras-schools > div { padding: 1px 0; }
+  .extras-block .na, .extras-block .muted { color: var(--muted); }
+  .extras-block .muted { font-size: 10px; }
+
   .kv-grid {
     display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
     font-size: 12px;
@@ -394,10 +419,76 @@ async function loadScores() {
 async function loadExtras() {
   const { data, error } = await db
     .from("listing_extras")
-    .select("listing_url, description, scraped_at");
+    .select("listing_url, description, raw, scraped_at");
   if (error) { console.error("loadExtras failed:", error); return; }
   state.extras = new Map();
   for (const row of data || []) state.extras.set(row.listing_url, row);
+}
+
+function findAll(obj, key) {
+  const seen = new WeakSet();
+  const acc = [];
+  const walk = (x) => {
+    if (x == null || typeof x !== "object" || seen.has(x)) return;
+    seen.add(x);
+    if (Array.isArray(x)) { x.forEach(walk); return; }
+    for (const k of Object.keys(x)) {
+      if (k === key) acc.push(x[k]);
+      walk(x[k]);
+    }
+  };
+  walk(obj);
+  return acc;
+}
+
+function extractExtras(raw) {
+  if (!raw) return null;
+
+  const firstNumeric = (key) => {
+    for (const v of findAll(raw, key)) {
+      if (typeof v === "number") return v;
+      if (v && typeof v === "object") {
+        const n = v.value ?? v.walkscore ?? v.transit_score ?? v.bikescore ?? v.score;
+        if (typeof n === "number") return n;
+      }
+    }
+    return null;
+  };
+  const walkScore = firstNumeric("walkScore");
+  const transitScore = firstNumeric("transitScore");
+  const bikeScore = firstNumeric("bikeScore");
+
+  const schoolsRaw = findAll(raw, "schools").find(Array.isArray) || [];
+  const schools = schoolsRaw
+    .filter((s) => s && (s.name || s.schoolName))
+    .map((s) => ({
+      name: s.name || s.schoolName,
+      rating: s.rating ?? s.greatSchoolsRating ?? null,
+      level: s.level || s.type || s.grades || "",
+      distance: s.distance ?? null,
+    }));
+
+  const priceHistory = findAll(raw, "priceHistory").find(Array.isArray) || [];
+  const listedForRent = priceHistory
+    .filter((p) => p && /listed for rent/i.test(p.event || ""))
+    .map((p) => p.date)
+    .sort()
+    .pop() || null;
+
+  const parkingPieces = [];
+  for (const v of findAll(raw, "parkingFeatures")) {
+    if (Array.isArray(v)) parkingPieces.push(...v.filter((x) => typeof x === "string"));
+    else if (typeof v === "string") parkingPieces.push(v);
+  }
+  const hasGarage = findAll(raw, "hasGarage").find((v) => typeof v === "boolean");
+  const parkingCapacity = findAll(raw, "parkingCapacity").find((v) => typeof v === "number");
+  const parking = {
+    features: [...new Set(parkingPieces)],
+    hasGarage: hasGarage ?? null,
+    capacity: parkingCapacity ?? null,
+  };
+
+  return { walkScore, transitScore, bikeScore, schools, listedForRent, parking };
 }
 
 async function saveScore(listingId, newScore) {
@@ -589,6 +680,52 @@ function description(r) {
   return `${badge}<div class="desc">${escapeHtml(raw)}</div>`;
 }
 
+function extrasBlock(r) {
+  const entry = state.extras.get(r._id);
+  if (!entry || !entry.raw) return "";
+  const e = extractExtras(entry.raw);
+  if (!e) return "";
+
+  const rows = [];
+
+  const scores = [
+    ["Walk", e.walkScore],
+    ["Transit", e.transitScore],
+    ["Bike", e.bikeScore],
+  ].filter(([, v]) => typeof v === "number");
+  if (scores.length) {
+    const html = scores.map(([l, v]) => `<span class="extras-chip">${l} <b>${Math.round(v)}</b></span>`).join("");
+    rows.push(`<div class="extras-row"><div class="extras-label">Scores</div><div>${html}</div></div>`);
+  }
+
+  if (e.listedForRent) {
+    rows.push(`<div class="extras-row"><div class="extras-label">Listed for rent</div><div>${escapeHtml(e.listedForRent)}</div></div>`);
+  }
+
+  if (e.schools.length) {
+    const html = e.schools.map((s) => {
+      const rating = s.rating != null ? `<b>${s.rating}/10</b>` : `<span class="na">—</span>`;
+      const level = s.level ? ` <span class="muted">(${escapeHtml(String(s.level))})</span>` : "";
+      const dist = s.distance != null ? ` <span class="muted">· ${s.distance} mi</span>` : "";
+      return `<div>${rating} ${escapeHtml(s.name)}${level}${dist}</div>`;
+    }).join("");
+    rows.push(`<div class="extras-row"><div class="extras-label">Schools</div><div class="extras-schools">${html}</div></div>`);
+  }
+
+  const parkingParts = [];
+  if (e.parking.hasGarage === true) parkingParts.push("Garage");
+  if (e.parking.capacity != null) parkingParts.push(`${e.parking.capacity} space${e.parking.capacity === 1 ? "" : "s"}`);
+  if (e.parking.features.length) parkingParts.push(...e.parking.features);
+  if (parkingParts.length) {
+    rows.push(`<div class="extras-row"><div class="extras-label">Parking</div><div>${escapeHtml(parkingParts.join(" · "))}</div></div>`);
+  } else if (e.parking.hasGarage === false) {
+    rows.push(`<div class="extras-row"><div class="extras-label">Parking</div><div class="na">Not listed</div></div>`);
+  }
+
+  if (!rows.length) return "";
+  return `<div class="extras-block"><div class="extras-header">More from Zillow</div>${rows.join("")}</div>`;
+}
+
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -686,6 +823,7 @@ function renderCard(r) {
       <div class="details">
         ${commuteFullGrid(r)}
         ${kvRows(r)}
+        ${extrasBlock(r)}
         ${description(r)}
       </div>
     </div>
