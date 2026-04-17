@@ -476,16 +476,37 @@ function extractExtras(raw) {
     .pop() || null;
 
   const parkingPieces = [];
-  for (const v of findAll(raw, "parkingFeatures")) {
-    if (Array.isArray(v)) parkingPieces.push(...v.filter((x) => typeof x === "string"));
-    else if (typeof v === "string") parkingPieces.push(v);
+  for (const k of ["parkingFeatures", "parking_features", "parking"]) {
+    for (const v of findAll(raw, k)) {
+      if (Array.isArray(v)) parkingPieces.push(...v.filter((x) => typeof x === "string"));
+      else if (typeof v === "string" && v.length < 120) parkingPieces.push(v);
+    }
   }
-  const hasGarage = findAll(raw, "hasGarage").find((v) => typeof v === "boolean");
-  const parkingCapacity = findAll(raw, "parkingCapacity").find((v) => typeof v === "number");
+  const firstBool = (key) => findAll(raw, key).find((v) => typeof v === "boolean");
+  const firstNum = (key) => findAll(raw, key).find((v) => typeof v === "number");
+  const hasGarage = firstBool("hasGarage") ?? firstBool("has_garage");
+  const hasAttachedGarage = firstBool("hasAttachedGarage");
+  const hasCarport = firstBool("hasCarport");
+  const capacity =
+    firstNum("parkingCapacity") ??
+    firstNum("garageParkingCapacity") ??
+    firstNum("garageSpaces") ??
+    firstNum("coveredSpaces") ??
+    firstNum("parking_capacity");
+  // Scan Zillow's atAGlanceFacts/resoFacts categories for a "Parking" fact.
+  let glanceParking = null;
+  for (const arr of findAll(raw, "atAGlanceFacts")) {
+    if (!Array.isArray(arr)) continue;
+    const hit = arr.find((f) => f && /parking/i.test(f.factLabel || f.category || ""));
+    if (hit && hit.factValue) { glanceParking = hit.factValue; break; }
+  }
+  if (glanceParking) parkingPieces.push(glanceParking);
   const parking = {
     features: [...new Set(parkingPieces)],
     hasGarage: hasGarage ?? null,
-    capacity: parkingCapacity ?? null,
+    hasAttachedGarage: hasAttachedGarage ?? null,
+    hasCarport: hasCarport ?? null,
+    capacity: capacity ?? null,
   };
 
   return { walkScore, transitScore, bikeScore, schools, listedForRent, parking };
@@ -713,13 +734,14 @@ function extrasBlock(r) {
   }
 
   const parkingParts = [];
-  if (e.parking.hasGarage === true) parkingParts.push("Garage");
+  if (e.parking.hasGarage === true) parkingParts.push(e.parking.hasAttachedGarage ? "Attached garage" : "Garage");
+  else if (e.parking.hasCarport === true) parkingParts.push("Carport");
   if (e.parking.capacity != null) parkingParts.push(`${e.parking.capacity} space${e.parking.capacity === 1 ? "" : "s"}`);
   if (e.parking.features.length) parkingParts.push(...e.parking.features);
   if (parkingParts.length) {
-    rows.push(`<div class="extras-row"><div class="extras-label">Parking</div><div>${escapeHtml(parkingParts.join(" · "))}</div></div>`);
+    rows.push(`<div class="extras-row"><div class="extras-label">Parking</div><div>${escapeHtml([...new Set(parkingParts)].join(" · "))}</div></div>`);
   } else if (e.parking.hasGarage === false) {
-    rows.push(`<div class="extras-row"><div class="extras-label">Parking</div><div class="na">Not listed</div></div>`);
+    rows.push(`<div class="extras-row"><div class="extras-label">Parking</div><div class="na">No garage listed</div></div>`);
   }
 
   if (!rows.length) return "";
