@@ -590,7 +590,6 @@ function renderCard(r) {
       <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
     </div>
     <div class="facts">${facts}</div>
-    ${scoreWidget(r)}
     <div class="scores">${scoreChips(r)}</div>
     <div class="commute-summary">${commuteSummary(r)}</div>
     <div class="actions">
@@ -599,6 +598,7 @@ function renderCard(r) {
       <div class="spacer"></div>
       <button class="link-btn toggle" data-toggle="${escapeHtml(r._id)}">Details</button>
     </div>
+    ${scoreWidget(r)}
     <div class="details">
       ${commuteFullGrid(r)}
       ${kvRows(r)}
