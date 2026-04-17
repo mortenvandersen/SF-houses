@@ -248,7 +248,15 @@
       </select>
     </div>
     <div class="control">
-      <label>Max minutes (drive)</label>
+      <label>By</label>
+      <select id="f-mode">
+        <option value="Drive">Drive</option>
+        <option value="Transit">Transit</option>
+        <option value="Walk">Walk</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Max minutes</label>
       <select id="f-max-minutes">
         <option value="">Any</option>
         <option value="15">≤ 15 min</option>
@@ -310,6 +318,7 @@ const state = {
   minBaths: null,
   minStars: null,
   destination: "",
+  mode: "Drive",
   maxMinutes: null,
   sort: "price-asc",
   openIds: new Set(),
@@ -394,7 +403,7 @@ function applyFilters() {
       if (myScore < state.minStars) return false;
     }
     if (state.destination && state.maxMinutes != null) {
-      const t = num(r, `${state.destination} - Drive Time (min)`);
+      const t = num(r, `${state.destination} - ${state.mode} Time (min)`);
       if (t == null || t > state.maxMinutes) return false;
     }
     return true;
@@ -633,6 +642,7 @@ function wireControls() {
   bind("f-baths", (e) => { state.minBaths = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-min-stars", (e) => { state.minStars = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-destination", (e) => { state.destination = e.target.value; render(); });
+  bind("f-mode", (e) => { state.mode = e.target.value; render(); });
   bind("f-max-minutes", (e) => { state.maxMinutes = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-sort", (e) => { state.sort = e.target.value; render(); });
 
