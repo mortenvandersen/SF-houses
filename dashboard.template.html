@@ -6,16 +6,18 @@
 <title>SF Rentals Dashboard</title>
 <style>
   :root {
-    --bg: #0f1419;
-    --panel: #171d26;
-    --panel-2: #1f2733;
-    --border: #2a3442;
-    --text: #e6ebf2;
-    --muted: #8a97a8;
-    --accent: #5ab0ff;
-    --accent-2: #7de3b0;
-    --warn: #ffb347;
-    --danger: #ff6b6b;
+    --bg: #eef3fb;
+    --panel: #ffffff;
+    --panel-2: #f3f7fd;
+    --border: #cfdae8;
+    --text: #0b2545;
+    --muted: #5c7a99;
+    --accent: #1e4d99;
+    --accent-strong: #0b2545;
+    --accent-2: #0e8f5d;
+    --warn: #e58905;
+    --danger: #d23b3b;
+    --star: #f5b400;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
@@ -26,10 +28,11 @@
 
   header.topbar {
     position: sticky; top: 0; z-index: 10;
-    background: linear-gradient(180deg, #0f1419 0%, #0f1419cc 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #ffffffee 100%);
     backdrop-filter: blur(6px);
     border-bottom: 1px solid var(--border);
     padding: 12px 20px;
+    box-shadow: 0 1px 3px rgba(11, 37, 69, 0.05);
   }
   .title-row { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
   .title-row h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
@@ -59,7 +62,7 @@
     border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer;
     user-select: none;
   }
-  .chip.active { background: var(--accent); color: #081018; border-color: var(--accent); font-weight: 600; }
+  .chip.active { background: var(--accent); color: #ffffff; border-color: var(--accent); font-weight: 600; }
 
   main { padding: 18px 20px 40px; }
 
@@ -74,9 +77,10 @@
     border-radius: 10px;
     padding: 14px 14px 12px;
     display: flex; flex-direction: column; gap: 10px;
-    transition: border-color 120ms ease, transform 120ms ease;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+    box-shadow: 0 1px 2px rgba(11, 37, 69, 0.04);
   }
-  .card:hover { border-color: #3b4a5f; }
+  .card:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(30, 77, 153, 0.1); }
 
   .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .addr { font-weight: 600; font-size: 14px; line-height: 1.35; }
@@ -102,7 +106,7 @@
   .commute-line .dest { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .commute-line .m { font-variant-numeric: tabular-nums; color: var(--text); min-width: 42px; text-align: right; }
   .commute-line .m .unit { color: var(--muted); font-size: 11px; }
-  .commute-line .m.na { color: #4a5566; }
+  .commute-line .m.na { color: #aab8cc; }
 
   .scores { display: flex; gap: 6px; flex-wrap: wrap; }
   .score {
@@ -120,7 +124,7 @@
     background: transparent; border: 1px solid var(--border); color: var(--muted);
     padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
   }
-  .link-btn:hover { color: var(--text); border-color: #3b4a5f; }
+  .link-btn:hover { color: var(--accent); border-color: var(--accent); }
 
   .details { display: none; border-top: 1px solid var(--border); padding-top: 10px; gap: 10px; flex-direction: column; }
   .card.open .details { display: flex; }
@@ -136,11 +140,11 @@
   }
   .commute-grid .h { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
   .commute-grid .v { font-variant-numeric: tabular-nums; text-align: right; }
-  .commute-grid .v.na { color: #4a5566; }
+  .commute-grid .v.na { color: #aab8cc; }
 
   .desc {
     background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
-    padding: 10px 12px; font-size: 12.5px; color: #cdd5e0; white-space: pre-wrap;
+    padding: 10px 12px; font-size: 12.5px; color: var(--text); white-space: pre-wrap;
     max-height: 260px; overflow-y: auto;
   }
   .desc.empty { color: var(--muted); font-style: italic; }
@@ -164,14 +168,14 @@
   }
   .score-stars { display: inline-flex; gap: 1px; }
   .star {
-    font-size: 20px; line-height: 1; color: #3b4a5f;
+    font-size: 20px; line-height: 1; color: #c5d1e0;
     cursor: pointer; user-select: none; padding: 0 1px;
     transition: color 80ms ease;
   }
-  .star.filled { color: #ffd24a; }
+  .star.filled { color: var(--star); }
   .score-stars.disabled .star { cursor: not-allowed; opacity: 0.5; }
   .score-stars:not(.disabled) .star:hover,
-  .score-stars:not(.disabled) .star.hover { color: #ffd24a; }
+  .score-stars:not(.disabled) .star.hover { color: var(--star); }
   .score-clear {
     font-size: 11px; color: var(--muted); background: transparent;
     border: none; cursor: pointer; padding: 2px 4px;
@@ -227,13 +231,31 @@
       </select>
     </div>
     <div class="control">
-      <label>Max commute to Vic Work (Drive)</label>
-      <select id="f-max-work">
+      <label>Min stars</label>
+      <select id="f-min-stars">
+        <option value="">Any</option>
+        <option value="1">≥ 1 ★</option>
+        <option value="2">≥ 2 ★</option>
+        <option value="3">≥ 3 ★</option>
+        <option value="4">≥ 4 ★</option>
+        <option value="5">5 ★</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Destination</label>
+      <select id="f-destination">
+        <option value="">Any</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Max minutes (drive)</label>
+      <select id="f-max-minutes">
         <option value="">Any</option>
         <option value="15">≤ 15 min</option>
         <option value="20">≤ 20 min</option>
         <option value="30">≤ 30 min</option>
         <option value="45">≤ 45 min</option>
+        <option value="60">≤ 60 min</option>
       </select>
     </div>
     <div class="control">
@@ -241,24 +263,7 @@
       <select id="f-sort">
         <option value="price-asc">Price ↑</option>
         <option value="price-desc">Price ↓</option>
-        <option value="ppsf-asc">Price / sqft ↑</option>
-        <option value="work-drive-asc">Drive to Vic Work ↑</option>
-        <option value="work-transit-asc">Transit to Vic Work ↑</option>
-        <option value="cumberland-drive-asc">Drive to Friend 1 ↑</option>
-        <option value="larkspur-drive-asc">Drive to Friend 2 ↑</option>
-        <option value="walkscore-desc">Walk Score ↓</option>
-        <option value="sqft-desc">Sqft ↓</option>
       </select>
-    </div>
-    <div class="control">
-      <label>Type</label>
-      <div class="chip-row" id="f-type"></div>
-    </div>
-    <div class="control">
-      <label>Options</label>
-      <div class="chip-row">
-        <span class="chip" id="f-hide-units">Hide building-level duplicates</span>
-      </div>
     </div>
     <div class="control">
       <label>Your name (for scoring)</label>
@@ -303,9 +308,9 @@ const state = {
   priceMax: null,
   minBeds: null,
   minBaths: null,
-  maxWorkDrive: null,
-  type: "all",
-  hideUnits: false,
+  minStars: null,
+  destination: "",
+  maxMinutes: null,
   sort: "price-asc",
   openIds: new Set(),
   scorer: (localStorage.getItem("sf-scorer") || "").trim(),
@@ -362,15 +367,16 @@ function computeStats(rows) {
 }
 
 function applyFilters() {
-  const q = state.search.trim().toLowerCase();
+  const tokens = state.search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let rows = RAW_DATA.filter((r) => {
-    if (q) {
+    if (tokens.length) {
       const hay = [
         r["Address"], r["Short Address"], r["Zip"],
+        r["City"], r["County"], r["State"],
         r["Broker Name"], r["Listed By (Premium Data)"],
-        r["Subdivision (Premium Data)"],
+        r["Subdivision (Premium Data)"], r["Type"],
       ].filter(Boolean).join(" ").toLowerCase();
-      if (!hay.includes(q)) return false;
+      if (!tokens.every((t) => hay.includes(t))) return false;
     }
     const p = r._priceValue;
     if (state.priceMin != null && (p == null || p < state.priceMin)) return false;
@@ -383,33 +389,17 @@ function applyFilters() {
       const b = num(r, "Baths");
       if (b == null || b < state.minBaths) return false;
     }
-    if (state.maxWorkDrive != null) {
-      const t = num(r, "Vic Work (Oyster Point) - Drive Time (min)");
-      if (t == null || t > state.maxWorkDrive) return false;
+    if (state.minStars != null && state.scorer) {
+      const myScore = state.scores.get(r._id)?.get(state.scorer)?.score ?? 0;
+      if (myScore < state.minStars) return false;
     }
-    if (state.type !== "all") {
-      if ((r["Type"] || "").toUpperCase() !== state.type) return false;
+    if (state.destination && state.maxMinutes != null) {
+      const t = num(r, `${state.destination} - Drive Time (min)`);
+      if (t == null || t > state.maxMinutes) return false;
     }
     return true;
   });
 
-  if (state.hideUnits) {
-    const seen = new Set();
-    rows = rows.filter((r) => {
-      const key = r["Short Address"] || r["Address"];
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
-  const cmpBy = (key) => (a, b) => {
-    const va = num(a, key); const vb = num(b, key);
-    if (va == null && vb == null) return 0;
-    if (va == null) return 1;
-    if (vb == null) return -1;
-    return va - vb;
-  };
   const byPrice = (a, b) => {
     const va = a._priceValue; const vb = b._priceValue;
     if (va == null && vb == null) return 0;
@@ -418,35 +408,8 @@ function applyFilters() {
     return va - vb;
   };
 
-  switch (state.sort) {
-    case "price-asc": rows.sort(byPrice); break;
-    case "price-desc": rows.sort((a, b) => -byPrice(a, b)); break;
-    case "ppsf-asc": rows.sort((a, b) => {
-      const va = a._ppsfValue; const vb = b._ppsfValue;
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      return va - vb;
-    }); break;
-    case "work-drive-asc": rows.sort(cmpBy("Vic Work (Oyster Point) - Drive Time (min)")); break;
-    case "work-transit-asc": rows.sort(cmpBy("Vic Work (Oyster Point) - Transit Time (min)")); break;
-    case "cumberland-drive-asc": rows.sort(cmpBy("Friend 1 (Cumberland) - Drive Time (min)")); break;
-    case "larkspur-drive-asc": rows.sort(cmpBy("Friend 2 (Larkspur) - Drive Time (min)")); break;
-    case "walkscore-desc": rows.sort((a, b) => {
-      const va = num(a, "Walk Score (Premium Data)"); const vb = num(b, "Walk Score (Premium Data)");
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      return vb - va;
-    }); break;
-    case "sqft-desc": rows.sort((a, b) => {
-      const va = num(a, "Footage"); const vb = num(b, "Footage");
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      return vb - va;
-    }); break;
-  }
+  if (state.sort === "price-desc") rows.sort((a, b) => -byPrice(a, b));
+  else rows.sort(byPrice);
 
   return rows;
 }
@@ -654,21 +617,11 @@ function render() {
   });
 }
 
-function populateTypeChips() {
-  const types = new Set();
-  RAW_DATA.forEach((r) => { if (r["Type"]) types.add(r["Type"]); });
-  const el = document.getElementById("f-type");
-  const chips = [["all", "All"]].concat(Array.from(types).map((t) => [t, t]));
-  el.innerHTML = chips.map(([val, label]) =>
-    `<span class="chip ${state.type === val ? "active" : ""}" data-type="${escapeHtml(val)}">${escapeHtml(label)}</span>`
-  ).join("");
-  el.querySelectorAll("[data-type]").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      state.type = chip.getAttribute("data-type");
-      populateTypeChips();
-      render();
-    });
-  });
+function populateDestinations() {
+  const sel = document.getElementById("f-destination");
+  const opts = ['<option value="">Any</option>']
+    .concat(META.destinations.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`));
+  sel.innerHTML = opts.join("");
 }
 
 function wireControls() {
@@ -678,15 +631,10 @@ function wireControls() {
   bind("f-price-max", (e) => { state.priceMax = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-beds", (e) => { state.minBeds = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-baths", (e) => { state.minBaths = e.target.value ? Number(e.target.value) : null; render(); });
-  bind("f-max-work", (e) => { state.maxWorkDrive = e.target.value ? Number(e.target.value) : null; render(); });
+  bind("f-min-stars", (e) => { state.minStars = e.target.value ? Number(e.target.value) : null; render(); });
+  bind("f-destination", (e) => { state.destination = e.target.value; render(); });
+  bind("f-max-minutes", (e) => { state.maxMinutes = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-sort", (e) => { state.sort = e.target.value; render(); });
-
-  const hide = document.getElementById("f-hide-units");
-  hide.addEventListener("click", () => {
-    state.hideUnits = !state.hideUnits;
-    hide.classList.toggle("active", state.hideUnits);
-    render();
-  });
 
   const scorer = document.getElementById("scorer-name");
   scorer.value = state.scorer;
@@ -697,7 +645,7 @@ function wireControls() {
   });
 }
 
-populateTypeChips();
+populateDestinations();
 wireControls();
 render();
 loadScores().then(render);
