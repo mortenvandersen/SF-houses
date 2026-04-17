@@ -156,6 +156,34 @@
     text-align: center; color: var(--muted); padding: 60px 20px;
     border: 1px dashed var(--border); border-radius: 10px;
   }
+
+  .score-box {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px;
+  }
+  .score-stars { display: inline-flex; gap: 1px; }
+  .star {
+    font-size: 20px; line-height: 1; color: #3b4a5f;
+    cursor: pointer; user-select: none; padding: 0 1px;
+    transition: color 80ms ease;
+  }
+  .star.filled { color: #ffd24a; }
+  .score-stars.disabled .star { cursor: not-allowed; opacity: 0.5; }
+  .score-stars:not(.disabled) .star:hover,
+  .score-stars:not(.disabled) .star.hover { color: #ffd24a; }
+  .score-clear {
+    font-size: 11px; color: var(--muted); background: transparent;
+    border: none; cursor: pointer; padding: 2px 4px;
+  }
+  .score-clear:hover { color: var(--text); }
+  .other-scores { display: flex; gap: 4px; flex-wrap: wrap; }
+  .other-score {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px; font-size: 11px; color: var(--muted);
+  }
+  .other-score b { color: var(--text); font-weight: 600; }
+  .score-hint { font-size: 11px; color: var(--muted); font-style: italic; }
 </style>
 </head>
 <body>
@@ -232,6 +260,10 @@
         <span class="chip" id="f-hide-units">Hide building-level duplicates</span>
       </div>
     </div>
+    <div class="control">
+      <label>Your name (for scoring)</label>
+      <input id="scorer-name" type="text" placeholder="e.g. Morten" autocomplete="off">
+    </div>
   </div>
 </header>
 <main>
@@ -239,9 +271,14 @@
   <div class="grid" id="grid"></div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const RAW_DATA = /*__DATA_PLACEHOLDER__*/null;
 const META = /*__META_PLACEHOLDER__*/null;
+
+const SUPABASE_URL = "https://sklvnnnxcgnkbccvvwpx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrbHZubm54Y2dua2JjY3Z2d3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjc0MDIsImV4cCI6MjA5MTk0MzQwMn0.-I3mDHdYOxYv9WV6vrUQejTtd7uRYNP0rkR-GM6KRSU";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const fmtPrice = (n) => n == null ? "—" :
   "$" + Math.round(n).toLocaleString();
@@ -271,7 +308,42 @@ const state = {
   hideUnits: false,
   sort: "price-asc",
   openIds: new Set(),
+  scorer: (localStorage.getItem("sf-scorer") || "").trim(),
+  // listing_id -> { scorer -> { score, notes, updated_at } }
+  scores: new Map(),
 };
+
+async function loadScores() {
+  const { data, error } = await db
+    .from("scores")
+    .select("listing_id, scorer, score, notes, updated_at");
+  if (error) { console.error("loadScores failed:", error); return; }
+  state.scores = new Map();
+  for (const row of data || []) {
+    if (!state.scores.has(row.listing_id)) state.scores.set(row.listing_id, new Map());
+    state.scores.get(row.listing_id).set(row.scorer, row);
+  }
+}
+
+async function saveScore(listingId, newScore) {
+  const scorer = state.scorer;
+  if (!scorer) { alert("Enter your name in the top bar before scoring."); return; }
+  if (!state.scores.has(listingId)) state.scores.set(listingId, new Map());
+  const bucket = state.scores.get(listingId);
+
+  if (newScore == null) {
+    bucket.delete(scorer);
+    render();
+    const { error } = await db.from("scores").delete().match({ listing_id: listingId, scorer });
+    if (error) console.error("delete failed:", error);
+  } else {
+    const payload = { listing_id: listingId, scorer, score: newScore, updated_at: new Date().toISOString() };
+    bucket.set(scorer, { ...(bucket.get(scorer) || {}), ...payload });
+    render();
+    const { error } = await db.from("scores").upsert(payload, { onConflict: "listing_id,scorer" });
+    if (error) console.error("upsert failed:", error);
+  }
+}
 
 // Build stable id per row (URL or fallback to index).
 RAW_DATA.forEach((r, i) => { r._id = r["Listing URL"] || ("row-" + i); });
@@ -484,6 +556,32 @@ function mapLink(r) {
   return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" class="link-btn">Map</a>`;
 }
 
+function scoreWidget(r) {
+  const bucket = state.scores.get(r._id) || new Map();
+  const myEntry = state.scorer ? bucket.get(state.scorer) : null;
+  const myScore = myEntry ? myEntry.score : 0;
+  const hasScorer = !!state.scorer;
+  const starsHtml = [1, 2, 3, 4, 5].map((n) =>
+    `<span class="star ${n <= myScore ? "filled" : ""}" data-score="${n}" data-id="${escapeHtml(r._id)}" title="${n} star${n === 1 ? "" : "s"}">★</span>`
+  ).join("");
+  const clearBtn = (hasScorer && myScore > 0)
+    ? `<button class="score-clear" data-clear="${escapeHtml(r._id)}" title="Clear your score">clear</button>`
+    : "";
+  const others = [...bucket.entries()]
+    .filter(([s]) => s !== state.scorer)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([s, v]) => `<span class="other-score" title="${escapeHtml(s)}: ${v.score}/5">${escapeHtml(s)} <b>${v.score}</b></span>`)
+    .join("");
+  const hint = hasScorer ? "" : `<span class="score-hint">Enter your name above to score</span>`;
+  return `
+    <div class="score-box">
+      <span class="score-stars ${hasScorer ? "" : "disabled"}">${starsHtml}</span>
+      ${clearBtn}
+      ${others ? `<div class="other-scores">${others}</div>` : ""}
+      ${hint}
+    </div>`;
+}
+
 function renderCard(r) {
   const beds = num(r, "Beds");
   const baths = num(r, "Baths");
@@ -508,6 +606,7 @@ function renderCard(r) {
       <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
     </div>
     <div class="facts">${facts}</div>
+    ${scoreWidget(r)}
     <div class="scores">${scoreChips(r)}</div>
     <div class="commute-summary">${commuteSummary(r)}</div>
     <div class="actions">
@@ -541,6 +640,17 @@ function render() {
       if (state.openIds.has(id)) state.openIds.delete(id); else state.openIds.add(id);
       render();
     });
+  });
+  grid.querySelectorAll(".star").forEach((star) => {
+    star.addEventListener("click", () => {
+      const id = star.getAttribute("data-id");
+      const n = Number(star.getAttribute("data-score"));
+      const current = state.scores.get(id)?.get(state.scorer)?.score;
+      saveScore(id, current === n ? null : n);
+    });
+  });
+  grid.querySelectorAll("[data-clear]").forEach((btn) => {
+    btn.addEventListener("click", () => saveScore(btn.getAttribute("data-clear"), null));
   });
 }
 
@@ -577,11 +687,20 @@ function wireControls() {
     hide.classList.toggle("active", state.hideUnits);
     render();
   });
+
+  const scorer = document.getElementById("scorer-name");
+  scorer.value = state.scorer;
+  scorer.addEventListener("input", (e) => {
+    state.scorer = e.target.value.trim();
+    localStorage.setItem("sf-scorer", state.scorer);
+    render();
+  });
 }
 
 populateTypeChips();
 wireControls();
 render();
+loadScores().then(render);
 </script>
 </body>
 </html>
