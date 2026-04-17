@@ -114,16 +114,27 @@
   }
   .fact b { color: var(--text); font-weight: 600; }
 
-  .commute-summary { display: flex; flex-direction: column; gap: 4px; }
+  .info-middle {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+    align-items: start;
+  }
+  .info-middle .left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  @media (max-width: 560px) {
+    .info-middle { grid-template-columns: 1fr; }
+  }
+
+  .commute-summary { display: flex; flex-direction: column; gap: 2px; }
   .commute-line {
     display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    gap: 8px;
+    grid-template-columns: 70px auto auto auto;
+    gap: 2px 8px;
     font-size: 12px;
     align-items: baseline;
   }
   .commute-line .dest { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .commute-line .m { font-variant-numeric: tabular-nums; color: var(--text); min-width: 42px; text-align: right; }
+  .commute-line .m { font-variant-numeric: tabular-nums; color: var(--text); min-width: 40px; text-align: right; }
   .commute-line .m .unit { color: var(--muted); font-size: 11px; }
   .commute-line .m.na { color: #aab8cc; }
 
@@ -642,9 +653,13 @@ function renderCard(r) {
         <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(zip)}</span></div>
         <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
       </div>
-      <div class="facts">${facts}</div>
-      <div class="scores">${scoreChips(r)}</div>
-      <div class="commute-summary">${commuteSummary(r)}</div>
+      <div class="info-middle">
+        <div class="left">
+          <div class="facts">${facts}</div>
+          <div class="scores">${scoreChips(r)}</div>
+        </div>
+        <div class="commute-summary">${commuteSummary(r)}</div>
+      </div>
       <div class="actions">
         ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
         ${mapLink(r)}
