@@ -57,6 +57,14 @@
   .control.range-row .stack { display: flex; flex-direction: column; gap: 2px; flex: 1; }
   .control.range-row input { width: 100%; }
 
+  .control.stacked { gap: 3px; }
+  .control.stacked .inline-row { display: flex; align-items: center; gap: 6px; }
+  .control.stacked .inline-row .mini {
+    font-size: 10px; color: var(--muted); min-width: 34px;
+  }
+  .control.stacked .inline-row input,
+  .control.stacked .inline-row select { flex: 1; height: 22px; font-size: 12px; }
+
   .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip {
     background: var(--panel); border: 1px solid var(--border); color: var(--muted);
@@ -190,30 +198,28 @@
   .other-score b { color: var(--text); font-weight: 600; }
   .score-hint { font-size: 11px; color: var(--muted); font-style: italic; }
 
-  .commute-filters {
-    margin-top: 6px;
-    display: flex; flex-direction: column; gap: 3px;
-    padding-top: 6px;
-    border-top: 1px solid var(--border);
+  .control.commute-filters {
+    grid-column: span 2;
+    gap: 2px;
   }
   .commute-row {
     display: grid;
-    grid-template-columns: minmax(120px, 1fr) 90px 110px;
-    gap: 6px;
+    grid-template-columns: minmax(90px, 1fr) 1fr 1fr;
+    gap: 4px;
     align-items: center;
   }
   .commute-row .dest-label {
-    font-size: 11px; color: var(--text); font-weight: 600;
+    font-size: 10px; color: var(--text); font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .commute-row select {
     background: var(--panel); color: var(--text); border: 1px solid var(--border);
-    border-radius: 5px; padding: 3px 6px; font-size: 12px; outline: none;
-    width: 100%; height: 26px;
+    border-radius: 5px; padding: 2px 5px; font-size: 11px; outline: none;
+    width: 100%; height: 22px;
   }
   .commute-row select:focus { border-color: var(--accent); }
   @media (max-width: 600px) {
-    .commute-row { grid-template-columns: 1fr 1fr; }
-    .commute-row .dest-label { grid-column: 1 / -1; }
+    .control.commute-filters { grid-column: span 1; }
   }
 </style>
 </head>
@@ -228,34 +234,36 @@
       <label>Search</label>
       <input id="f-search" type="text" placeholder="Address, neighborhood, broker…">
     </div>
-    <div class="control range-row">
-      <div class="stack">
-        <label>Min price</label>
+    <div class="control stacked">
+      <div class="inline-row">
+        <span class="mini">Min $</span>
         <input id="f-price-min" type="number" min="0" step="100" placeholder="0">
       </div>
-      <div class="stack">
-        <label>Max price</label>
+      <div class="inline-row">
+        <span class="mini">Max $</span>
         <input id="f-price-max" type="number" min="0" step="100" placeholder="any">
       </div>
     </div>
-    <div class="control">
-      <label>Min beds</label>
-      <select id="f-beds">
-        <option value="">Any</option>
-        <option value="1">1+</option>
-        <option value="2">2+</option>
-        <option value="3">3+</option>
-        <option value="4">4+</option>
-      </select>
-    </div>
-    <div class="control">
-      <label>Min baths</label>
-      <select id="f-baths">
-        <option value="">Any</option>
-        <option value="1">1+</option>
-        <option value="2">2+</option>
-        <option value="3">3+</option>
-      </select>
+    <div class="control stacked">
+      <div class="inline-row">
+        <span class="mini">Beds</span>
+        <select id="f-beds">
+          <option value="">Any</option>
+          <option value="1">1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+          <option value="4">4+</option>
+        </select>
+      </div>
+      <div class="inline-row">
+        <span class="mini">Baths</span>
+        <select id="f-baths">
+          <option value="">Any</option>
+          <option value="1">1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+        </select>
+      </div>
     </div>
     <div class="control">
       <label>Min stars</label>
@@ -279,8 +287,8 @@
       <label>Your name (for scoring)</label>
       <input id="scorer-name" type="text" placeholder="e.g. Morten" autocomplete="off">
     </div>
+    <div class="control commute-filters" id="commute-filters"></div>
   </div>
-  <div class="commute-filters" id="commute-filters"></div>
 </header>
 <main>
   <div class="count-line" id="count-line"></div>
