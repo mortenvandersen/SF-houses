@@ -2,6 +2,7 @@ import csv
 import time
 import requests
 from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 GOOGLE_API_KEY = "AIzaSyAnkSa_iZRgtY1ofYF_FAcgckAZD3Mqeqk"
@@ -38,7 +39,7 @@ MODE_LABEL = {
     "transit": "Transit",
 }
 
-INPUT_CSV = "Z-Real-Estate-Scraper-Data-Rental Listings-2026-04-16.csv"
+SEARCHES_DIR = Path("searches")
 OUTPUT_CSV = "listings_with_distances.csv"
 
 DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
@@ -142,6 +143,33 @@ def fetch_distances(
     return results
 
 
+def load_search_rows() -> tuple[list[dict], list[str], list[str]]:
+    """Read every CSV in searches/, dedupe by Listing URL (latest file wins).
+
+    Returns (rows, fieldnames, filenames).
+    """
+    files = sorted(SEARCHES_DIR.glob("*.csv"))
+    if not files:
+        raise FileNotFoundError(f"No CSV files found in {SEARCHES_DIR}/")
+
+    merged: dict[str, dict] = {}
+    fieldnames: list[str] = []
+    for path in files:
+        with open(path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for fn in reader.fieldnames or []:
+                if fn not in fieldnames:
+                    fieldnames.append(fn)
+            for row in reader:
+                if not row.get("Address", "").strip():
+                    continue
+                key = row.get("Listing URL") or row.get("Address")
+                if not key:
+                    continue
+                merged[key] = row  # later files overwrite earlier ones
+    return list(merged.values()), fieldnames, [p.name for p in files]
+
+
 def already_processed_addresses() -> set[str]:
     """Return addresses already present in the output CSV, or empty set if it doesn't exist."""
     try:
@@ -152,15 +180,15 @@ def already_processed_addresses() -> set[str]:
 
 
 def main():
-    with open(INPUT_CSV, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        all_rows = [r for r in reader if r.get("Address", "").strip()]
-        fieldnames = list(reader.fieldnames or [])
+    all_rows, fieldnames, source_files = load_search_rows()
 
     done = already_processed_addresses()
     rows = [r for r in all_rows if r["Address"] not in done]
 
-    print(f"Source listings : {len(all_rows)}")
+    print(f"Search files    : {len(source_files)}")
+    for name in source_files:
+        print(f"  - {name}")
+    print(f"Unique listings : {len(all_rows)}")
     print(f"Already done    : {len(done)}")
     print(f"To process      : {len(rows)}")
 
