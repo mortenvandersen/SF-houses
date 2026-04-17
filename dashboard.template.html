@@ -31,30 +31,39 @@
     background: linear-gradient(180deg, #ffffff 0%, #ffffffee 100%);
     backdrop-filter: blur(6px);
     border-bottom: 1px solid var(--border);
-    padding: 12px 20px;
+    padding: 8px 16px;
     box-shadow: 0 1px 3px rgba(11, 37, 69, 0.05);
   }
-  .title-row { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-  .title-row h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
-  .stats { display: flex; gap: 18px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+  .title-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .title-row h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+  .stats { display: flex; gap: 12px; color: var(--muted); font-size: 11px; flex-wrap: wrap; }
   .stats b { color: var(--text); font-weight: 600; }
 
   .controls {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 10px 14px;
-    margin-top: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 6px 10px;
+    margin-top: 6px;
   }
-  .control { display: flex; flex-direction: column; gap: 4px; }
-  .control label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .control { display: flex; flex-direction: column; gap: 2px; }
+  .control label { font-size: 10px; color: var(--muted); letter-spacing: 0.3px; }
   .control input, .control select {
     background: var(--panel); color: var(--text); border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 8px; font-size: 13px; outline: none;
+    border-radius: 5px; padding: 3px 6px; font-size: 12px; outline: none;
+    height: 26px;
   }
   .control input:focus, .control select:focus { border-color: var(--accent); }
-  .control.range-row { flex-direction: row; gap: 6px; align-items: center; }
-  .control.range-row .stack { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .control.range-row { flex-direction: row; gap: 4px; align-items: center; }
+  .control.range-row .stack { display: flex; flex-direction: column; gap: 2px; flex: 1; }
   .control.range-row input { width: 100%; }
+
+  .control.stacked { gap: 3px; }
+  .control.stacked .inline-row { display: flex; align-items: center; gap: 6px; }
+  .control.stacked .inline-row .mini {
+    font-size: 10px; color: var(--muted); min-width: 34px;
+  }
+  .control.stacked .inline-row input,
+  .control.stacked .inline-row select { flex: 1; height: 22px; font-size: 12px; }
 
   .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip {
@@ -189,30 +198,28 @@
   .other-score b { color: var(--text); font-weight: 600; }
   .score-hint { font-size: 11px; color: var(--muted); font-style: italic; }
 
-  .commute-filters {
-    margin-top: 10px;
-    display: flex; flex-direction: column; gap: 6px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
+  .control.commute-filters {
+    grid-column: span 2;
+    gap: 2px;
   }
   .commute-row {
     display: grid;
-    grid-template-columns: minmax(140px, 1fr) 110px 140px;
-    gap: 10px;
+    grid-template-columns: minmax(90px, 1fr) 1fr 1fr;
+    gap: 4px;
     align-items: center;
   }
   .commute-row .dest-label {
-    font-size: 12px; color: var(--text); font-weight: 600;
+    font-size: 10px; color: var(--text); font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .commute-row select {
     background: var(--panel); color: var(--text); border: 1px solid var(--border);
-    border-radius: 6px; padding: 5px 8px; font-size: 13px; outline: none;
-    width: 100%;
+    border-radius: 5px; padding: 2px 5px; font-size: 11px; outline: none;
+    width: 100%; height: 22px;
   }
   .commute-row select:focus { border-color: var(--accent); }
   @media (max-width: 600px) {
-    .commute-row { grid-template-columns: 1fr 1fr; }
-    .commute-row .dest-label { grid-column: 1 / -1; }
+    .control.commute-filters { grid-column: span 1; }
   }
 </style>
 </head>
@@ -227,34 +234,36 @@
       <label>Search</label>
       <input id="f-search" type="text" placeholder="Address, neighborhood, broker…">
     </div>
-    <div class="control range-row">
-      <div class="stack">
-        <label>Min price</label>
+    <div class="control stacked">
+      <div class="inline-row">
+        <span class="mini">Min $</span>
         <input id="f-price-min" type="number" min="0" step="100" placeholder="0">
       </div>
-      <div class="stack">
-        <label>Max price</label>
+      <div class="inline-row">
+        <span class="mini">Max $</span>
         <input id="f-price-max" type="number" min="0" step="100" placeholder="any">
       </div>
     </div>
-    <div class="control">
-      <label>Min beds</label>
-      <select id="f-beds">
-        <option value="">Any</option>
-        <option value="1">1+</option>
-        <option value="2">2+</option>
-        <option value="3">3+</option>
-        <option value="4">4+</option>
-      </select>
-    </div>
-    <div class="control">
-      <label>Min baths</label>
-      <select id="f-baths">
-        <option value="">Any</option>
-        <option value="1">1+</option>
-        <option value="2">2+</option>
-        <option value="3">3+</option>
-      </select>
+    <div class="control stacked">
+      <div class="inline-row">
+        <span class="mini">Beds</span>
+        <select id="f-beds">
+          <option value="">Any</option>
+          <option value="1">1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+          <option value="4">4+</option>
+        </select>
+      </div>
+      <div class="inline-row">
+        <span class="mini">Baths</span>
+        <select id="f-baths">
+          <option value="">Any</option>
+          <option value="1">1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+        </select>
+      </div>
     </div>
     <div class="control">
       <label>Min stars</label>
@@ -278,8 +287,8 @@
       <label>Your name (for scoring)</label>
       <input id="scorer-name" type="text" placeholder="e.g. Morten" autocomplete="off">
     </div>
+    <div class="control commute-filters" id="commute-filters"></div>
   </div>
-  <div class="commute-filters" id="commute-filters"></div>
 </header>
 <main>
   <div class="count-line" id="count-line"></div>
@@ -581,7 +590,6 @@ function renderCard(r) {
       <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
     </div>
     <div class="facts">${facts}</div>
-    ${scoreWidget(r)}
     <div class="scores">${scoreChips(r)}</div>
     <div class="commute-summary">${commuteSummary(r)}</div>
     <div class="actions">
@@ -590,6 +598,7 @@ function renderCard(r) {
       <div class="spacer"></div>
       <button class="link-btn toggle" data-toggle="${escapeHtml(r._id)}">Details</button>
     </div>
+    ${scoreWidget(r)}
     <div class="details">
       ${commuteFullGrid(r)}
       ${kvRows(r)}
