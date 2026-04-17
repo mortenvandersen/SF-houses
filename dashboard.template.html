@@ -76,20 +76,30 @@
   main { padding: 18px 20px 40px; }
 
   .grid {
-    display: grid; gap: 14px;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    display: flex; flex-direction: column; gap: 8px;
   }
 
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 14px 14px 12px;
-    display: flex; flex-direction: column; gap: 10px;
+    padding: 12px 14px;
+    display: flex; flex-direction: row; gap: 16px; align-items: stretch;
     transition: border-color 120ms ease, box-shadow 120ms ease;
     box-shadow: 0 1px 2px rgba(11, 37, 69, 0.04);
   }
   .card:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(30, 77, 153, 0.1); }
+  .card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .card .score-panel {
+    width: 360px; flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    padding-left: 14px;
+    display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  }
+  @media (max-width: 820px) {
+    .card { flex-direction: column; }
+    .card .score-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 10px; }
+  }
 
   .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .addr { font-weight: 600; font-size: 14px; line-height: 1.35; }
@@ -170,33 +180,41 @@
     border: 1px dashed var(--border); border-radius: 10px;
   }
 
-  .score-box {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    background: var(--panel-2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 10px;
+  .score-box { display: flex; flex-direction: column; gap: 4px; }
+  .scorer-row {
+    display: grid;
+    grid-template-columns: 64px auto 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
   }
+  .scorer-row.me { background: var(--panel-2); }
+  .scorer-row .scorer-name { font-size: 12px; font-weight: 600; color: var(--text); }
   .score-stars { display: inline-flex; gap: 1px; }
   .star {
-    font-size: 20px; line-height: 1; color: #c5d1e0;
-    cursor: pointer; user-select: none; padding: 0 1px;
+    font-size: 18px; line-height: 1; color: #c5d1e0;
+    user-select: none; padding: 0 1px;
     transition: color 80ms ease;
   }
   .star.filled { color: var(--star); }
-  .score-stars.disabled .star { cursor: not-allowed; opacity: 0.5; }
-  .score-stars:not(.disabled) .star:hover,
-  .score-stars:not(.disabled) .star.hover { color: var(--star); }
-  .score-clear {
-    font-size: 11px; color: var(--muted); background: transparent;
-    border: none; cursor: pointer; padding: 2px 4px;
+  .score-stars:not(.disabled) .star { cursor: pointer; }
+  .score-stars.disabled .star { cursor: default; }
+  .score-stars:not(.disabled) .star:hover { color: var(--star); }
+  .scorer-note {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 3px 7px; font-size: 12px; outline: none;
+    min-width: 0; width: 100%;
   }
-  .score-clear:hover { color: var(--text); }
-  .other-scores { display: flex; gap: 4px; flex-wrap: wrap; }
-  .other-score {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1px 6px; font-size: 11px; color: var(--muted);
+  .scorer-note:focus { border-color: var(--accent); }
+  .scorer-note.read-only {
+    background: transparent; border: 1px dashed transparent;
+    font-style: italic; color: var(--muted);
+    padding: 3px 7px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .other-score b { color: var(--text); font-weight: 600; }
-  .score-hint { font-size: 11px; color: var(--muted); font-style: italic; }
+  .scorer-note.read-only.empty { color: #aab8cc; }
 
   .control.commute-filters {
     grid-column: span 2;
@@ -284,8 +302,12 @@
       </select>
     </div>
     <div class="control">
-      <label>Your name (for scoring)</label>
-      <input id="scorer-name" type="text" placeholder="e.g. Morten" autocomplete="off">
+      <label>I am</label>
+      <select id="scorer-name">
+        <option value="">— (read only)</option>
+        <option value="Morten">Morten</option>
+        <option value="Victoria">Victoria</option>
+      </select>
     </div>
     <div class="control commute-filters" id="commute-filters"></div>
   </div>
@@ -321,6 +343,9 @@ function scoreClass(v) {
   return "bad";
 }
 
+const SCORERS = ["Morten", "Victoria"];
+
+const _storedScorer = (localStorage.getItem("sf-scorer") || "").trim();
 const state = {
   search: "",
   priceMin: null,
@@ -332,7 +357,7 @@ const state = {
   commute: {},
   sort: "price-asc",
   openIds: new Set(),
-  scorer: (localStorage.getItem("sf-scorer") || "").trim(),
+  scorer: SCORERS.includes(_storedScorer) ? _storedScorer : "",
   // listing_id -> { scorer -> { score, notes, updated_at } }
   scores: new Map(),
 };
@@ -351,22 +376,48 @@ async function loadScores() {
 
 async function saveScore(listingId, newScore) {
   const scorer = state.scorer;
-  if (!scorer) { alert("Enter your name in the top bar before scoring."); return; }
+  if (!scorer) { alert("Pick Morten or Victoria in the top bar first."); return; }
   if (!state.scores.has(listingId)) state.scores.set(listingId, new Map());
   const bucket = state.scores.get(listingId);
+  const existing = bucket.get(scorer) || {};
+  const score = newScore == null ? 0 : newScore;
+  const notes = existing.notes || "";
 
-  if (newScore == null) {
+  if (score === 0 && !notes) {
     bucket.delete(scorer);
     render();
     const { error } = await db.from("scores").delete().match({ listing_id: listingId, scorer });
     if (error) console.error("delete failed:", error);
   } else {
-    const payload = { listing_id: listingId, scorer, score: newScore, updated_at: new Date().toISOString() };
-    bucket.set(scorer, { ...(bucket.get(scorer) || {}), ...payload });
+    const payload = { listing_id: listingId, scorer, score, notes, updated_at: new Date().toISOString() };
+    bucket.set(scorer, payload);
     render();
     const { error } = await db.from("scores").upsert(payload, { onConflict: "listing_id,scorer" });
     if (error) console.error("upsert failed:", error);
   }
+}
+
+async function saveNote(listingId, notes) {
+  const scorer = state.scorer;
+  if (!scorer) return;
+  if (!state.scores.has(listingId)) state.scores.set(listingId, new Map());
+  const bucket = state.scores.get(listingId);
+  const existing = bucket.get(scorer) || {};
+  const score = existing.score || 0;
+  const trimmed = (notes || "").trim();
+
+  if (score === 0 && !trimmed) {
+    if (!bucket.has(scorer)) return;
+    bucket.delete(scorer);
+    const { error } = await db.from("scores").delete().match({ listing_id: listingId, scorer });
+    if (error) console.error("delete failed:", error);
+    return;
+  }
+
+  const payload = { listing_id: listingId, scorer, score, notes: trimmed, updated_at: new Date().toISOString() };
+  bucket.set(scorer, payload);
+  const { error } = await db.from("scores").upsert(payload, { onConflict: "listing_id,scorer" });
+  if (error) console.error("saveNote failed:", error);
 }
 
 // Build stable id per row (URL or fallback to index).
@@ -542,28 +593,29 @@ function mapLink(r) {
 
 function scoreWidget(r) {
   const bucket = state.scores.get(r._id) || new Map();
-  const myEntry = state.scorer ? bucket.get(state.scorer) : null;
-  const myScore = myEntry ? myEntry.score : 0;
-  const hasScorer = !!state.scorer;
-  const starsHtml = [1, 2, 3, 4, 5].map((n) =>
-    `<span class="star ${n <= myScore ? "filled" : ""}" data-score="${n}" data-id="${escapeHtml(r._id)}" title="${n} star${n === 1 ? "" : "s"}">★</span>`
-  ).join("");
-  const clearBtn = (hasScorer && myScore > 0)
-    ? `<button class="score-clear" data-clear="${escapeHtml(r._id)}" title="Clear your score">clear</button>`
-    : "";
-  const others = [...bucket.entries()]
-    .filter(([s]) => s !== state.scorer)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([s, v]) => `<span class="other-score" title="${escapeHtml(s)}: ${v.score}/5">${escapeHtml(s)} <b>${v.score}</b></span>`)
-    .join("");
-  const hint = hasScorer ? "" : `<span class="score-hint">Enter your name above to score</span>`;
-  return `
-    <div class="score-box">
-      <span class="score-stars ${hasScorer ? "" : "disabled"}">${starsHtml}</span>
-      ${clearBtn}
-      ${others ? `<div class="other-scores">${others}</div>` : ""}
-      ${hint}
-    </div>`;
+  const rows = SCORERS.map((name) => {
+    const entry = bucket.get(name);
+    const score = entry ? entry.score : 0;
+    const note = entry && entry.notes ? entry.notes : "";
+    const isMe = state.scorer === name;
+    const stars = [1, 2, 3, 4, 5].map((n) => {
+      const cls = `star${n <= score ? " filled" : ""}`;
+      const attrs = isMe
+        ? ` data-score="${n}" data-id="${escapeHtml(r._id)}"`
+        : "";
+      return `<span class="${cls}"${attrs} title="${n}/5">★</span>`;
+    }).join("");
+    const noteField = isMe
+      ? `<input class="scorer-note" type="text" value="${escapeHtml(note)}" data-note-id="${escapeHtml(r._id)}" placeholder="Why this score…">`
+      : `<div class="scorer-note read-only${note ? "" : " empty"}" title="${escapeHtml(note)}">${note ? escapeHtml(note) : "—"}</div>`;
+    return `
+      <div class="scorer-row ${isMe ? "me" : "other"}">
+        <span class="scorer-name">${name}</span>
+        <span class="score-stars ${isMe ? "" : "disabled"}">${stars}</span>
+        ${noteField}
+      </div>`;
+  }).join("");
+  return `<div class="score-box">${rows}</div>`;
 }
 
 function renderCard(r) {
@@ -585,25 +637,27 @@ function renderCard(r) {
 
   return `
   <article class="card ${isOpen ? "open" : ""}" data-id="${escapeHtml(r._id)}">
-    <div class="card-head">
-      <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(zip)}</span></div>
-      <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
+    <div class="info">
+      <div class="card-head">
+        <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(zip)}</span></div>
+        <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
+      </div>
+      <div class="facts">${facts}</div>
+      <div class="scores">${scoreChips(r)}</div>
+      <div class="commute-summary">${commuteSummary(r)}</div>
+      <div class="actions">
+        ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
+        ${mapLink(r)}
+        <div class="spacer"></div>
+        <button class="link-btn toggle" data-toggle="${escapeHtml(r._id)}">Details</button>
+      </div>
+      <div class="details">
+        ${commuteFullGrid(r)}
+        ${kvRows(r)}
+        ${description(r)}
+      </div>
     </div>
-    <div class="facts">${facts}</div>
-    <div class="scores">${scoreChips(r)}</div>
-    <div class="commute-summary">${commuteSummary(r)}</div>
-    <div class="actions">
-      ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
-      ${mapLink(r)}
-      <div class="spacer"></div>
-      <button class="link-btn toggle" data-toggle="${escapeHtml(r._id)}">Details</button>
-    </div>
-    ${scoreWidget(r)}
-    <div class="details">
-      ${commuteFullGrid(r)}
-      ${kvRows(r)}
-      ${description(r)}
-    </div>
+    <div class="score-panel">${scoreWidget(r)}</div>
   </article>`;
 }
 
@@ -625,7 +679,7 @@ function render() {
       render();
     });
   });
-  grid.querySelectorAll(".star").forEach((star) => {
+  grid.querySelectorAll(".star[data-score]").forEach((star) => {
     star.addEventListener("click", () => {
       const id = star.getAttribute("data-id");
       const n = Number(star.getAttribute("data-score"));
@@ -633,8 +687,16 @@ function render() {
       saveScore(id, current === n ? null : n);
     });
   });
-  grid.querySelectorAll("[data-clear]").forEach((btn) => {
-    btn.addEventListener("click", () => saveScore(btn.getAttribute("data-clear"), null));
+  grid.querySelectorAll(".scorer-note[data-note-id]").forEach((input) => {
+    input.addEventListener("blur", () => {
+      const id = input.getAttribute("data-note-id");
+      const existing = state.scores.get(id)?.get(state.scorer)?.notes || "";
+      if (input.value === existing) return;
+      saveNote(id, input.value);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    });
   });
 }
 
