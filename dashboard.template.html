@@ -388,14 +388,14 @@ const SCORERS = ["Morten", "Victoria"];
 const _storedScorer = (localStorage.getItem("sf-scorer") || "").trim();
 const state = {
   search: "",
-  priceMin: null,
-  priceMax: null,
+  priceMin: 6500,
+  priceMax: 11000,
   minBeds: null,
   minBaths: null,
   minStars: null,
   // destination -> { mode: "Drive"|"Transit"|"Walk", maxMinutes: number|null }
   commute: {},
-  sort: "price-asc",
+  sort: "price-desc",
   openIds: new Set(),
   scorer: SCORERS.includes(_storedScorer) ? _storedScorer : "",
   // listing_id -> { scorer -> { score, notes, updated_at } }
@@ -764,7 +764,7 @@ function fmtDate(raw) {
   if (!iso) return raw;
   const d = new Date(iso[1] + "T00:00:00");
   if (isNaN(d)) return raw;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" });
 }
 
 function listingDateInfo(r) {
@@ -964,6 +964,9 @@ function populateCommuteRows() {
 
 function wireControls() {
   const bind = (id, handler) => document.getElementById(id).addEventListener("input", handler);
+  document.getElementById("f-price-min").value = state.priceMin ?? "";
+  document.getElementById("f-price-max").value = state.priceMax ?? "";
+  document.getElementById("f-sort").value = state.sort;
   bind("f-search", (e) => { state.search = e.target.value; render(); });
   bind("f-price-min", (e) => { state.priceMin = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-price-max", (e) => { state.priceMax = e.target.value ? Number(e.target.value) : null; render(); });
