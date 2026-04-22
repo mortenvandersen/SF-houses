@@ -758,6 +758,33 @@ function escapeHtml(s) {
   }[c]));
 }
 
+function fmtDate(raw) {
+  if (!raw) return null;
+  const iso = raw.match(/(\d{4}-\d{2}-\d{2})/);
+  if (!iso) return raw;
+  const d = new Date(iso[1] + "T00:00:00");
+  if (isNaN(d)) return raw;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function listingDateInfo(r) {
+  const entry = state.extras.get(r._id);
+  if (entry && entry.raw) {
+    const e = extractExtras(entry.raw);
+    if (e && e.listedForRent) return { label: "Listed", date: e.listedForRent };
+  }
+  const days = num(r, "Days on Zillow");
+  const scraped = r["Date Scraped"] || "";
+  const scrapeIso = (scraped.match(/(\d{4}-\d{2}-\d{2})/) || [])[1];
+  if (days != null && scrapeIso) {
+    const d = new Date(scrapeIso + "T00:00:00");
+    d.setDate(d.getDate() - Math.round(days));
+    return { label: "Listed ~", date: d.toISOString().slice(0, 10) };
+  }
+  if (scrapeIso) return { label: "Scraped", date: scrapeIso };
+  return null;
+}
+
 function kvRows(r) {
   const entries = [
     ["Type", r["Type"]],
@@ -818,12 +845,15 @@ function renderCard(r) {
   const short = r["Short Address"] || r["Address"] || "(no address)";
   const zip = r["Zip"] || "";
   const isOpen = state.openIds.has(r._id);
+  const dateInfo = listingDateInfo(r);
+  const dateFact = dateInfo ? `<span class="fact" title="${escapeHtml(dateInfo.label + " " + dateInfo.date)}">${escapeHtml(dateInfo.label)} ${escapeHtml(fmtDate(dateInfo.date))}</span>` : "";
   const facts = [
     beds != null ? `<span class="fact"><b>${beds}</b> bd</span>` : "",
     baths != null ? `<span class="fact"><b>${baths}</b> ba</span>` : "",
     sqft != null ? `<span class="fact"><b>${sqft.toLocaleString()}</b> sqft</span>` : "",
     ppsf ? `<span class="fact">${escapeHtml(ppsf)}/sqft</span>` : "",
     r["Type"] ? `<span class="fact">${escapeHtml(r["Type"])}</span>` : "",
+    dateFact,
   ].filter(Boolean).join("");
 
   return `
