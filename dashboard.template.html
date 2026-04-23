@@ -101,7 +101,15 @@
     .card .score-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 10px; }
   }
 
-  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .card-head { display: flex; align-items: center; gap: 10px; }
+  .card-head .addr { flex: 1; min-width: 0; }
+  .card-thumb-link { flex-shrink: 0; line-height: 0; }
+  .card-thumb {
+    width: 72px; height: 72px; object-fit: cover;
+    border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel-2);
+    display: block;
+  }
   .addr { font-weight: 600; font-size: 14px; line-height: 1.35; }
   .addr .zip { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
   .price { font-size: 20px; font-weight: 700; color: var(--accent-2); white-space: nowrap; }
@@ -207,6 +215,19 @@
   .extras-schools > div { padding: 1px 0; }
   .extras-block .na, .extras-block .muted { color: var(--muted); }
   .extras-block .muted { font-size: 10px; }
+  .extras-gallery {
+    display: flex; gap: 6px;
+    overflow-x: auto; overflow-y: hidden;
+    padding: 4px 0 6px;
+    scrollbar-width: thin;
+  }
+  .extras-gallery a { flex-shrink: 0; line-height: 0; }
+  .extras-gallery img {
+    height: 140px; width: auto; object-fit: cover;
+    border-radius: 4px; border: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+  .extras-gallery img:hover { border-color: var(--accent); }
 
   .kv-grid {
     display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px;
@@ -462,6 +483,8 @@ function extractExtras(raw) {
   const transitScore = firstNumeric("transitScore");
   const bikeScore = firstNumeric("bikeScore");
 
+  const photos = extractPhotos(raw);
+
   const schoolsRaw = findAll(raw, "schools").find(Array.isArray) || [];
   const schools = schoolsRaw
     .filter((s) => s && (s.name || s.schoolName))
@@ -513,7 +536,55 @@ function extractExtras(raw) {
     capacity: capacity ?? null,
   };
 
-  return { walkScore, transitScore, bikeScore, schools, listedForRent, parking };
+  return { walkScore, transitScore, bikeScore, schools, listedForRent, parking, photos };
+}
+
+function normalizePhoto(p) {
+  if (!p || typeof p !== "object") return null;
+  const sources = p.mixedSources?.jpeg || p.mixedSources?.webp;
+  if (Array.isArray(sources) && sources.length) {
+    const ok = sources.filter((s) => s && typeof s.url === "string");
+    if (!ok.length) return null;
+    const sorted = [...ok].sort((a, b) => (a.width || 0) - (b.width || 0));
+    const medium = sorted.reduce((best, cur) =>
+      Math.abs((cur.width || 0) - 768) < Math.abs((best.width || 0) - 768) ? cur : best
+    , sorted[0]);
+    return {
+      small: sorted[0].url,
+      medium: medium.url,
+      large: sorted[sorted.length - 1].url,
+      caption: p.caption || "",
+    };
+  }
+  const url = p.url || p.src || p.imgSrc || p.highResImageLink;
+  if (typeof url === "string" && url.startsWith("http")) {
+    return { small: url, medium: url, large: url, caption: p.caption || "" };
+  }
+  return null;
+}
+
+function extractPhotos(raw) {
+  const seen = new Set();
+  const out = [];
+  const push = (arr) => {
+    if (!Array.isArray(arr)) return;
+    for (const item of arr) {
+      const n = normalizePhoto(item);
+      if (n && !seen.has(n.large)) { seen.add(n.large); out.push(n); }
+    }
+  };
+  for (const key of ["responsivePhotos", "photos", "responsivePhotosOriginalRatio"]) {
+    for (const arr of findAll(raw, key)) push(arr);
+    if (out.length) return out;
+  }
+  return out;
+}
+
+function getExtras(r) {
+  const entry = state.extras.get(r._id);
+  if (!entry || !entry.raw) return null;
+  if (!entry._extracted) entry._extracted = extractExtras(entry.raw);
+  return entry._extracted;
 }
 
 async function saveScore(listingId, newScore) {
@@ -706,9 +777,7 @@ function description(r) {
 }
 
 function extrasBlock(r) {
-  const entry = state.extras.get(r._id);
-  if (!entry || !entry.raw) return "";
-  const e = extractExtras(entry.raw);
+  const e = getExtras(r);
   if (!e) return "";
 
   const rows = [];
@@ -748,8 +817,17 @@ function extrasBlock(r) {
     rows.push(`<div class="extras-row"><div class="extras-label">Parking</div><div class="na">No garage listed</div></div>`);
   }
 
-  if (!rows.length) return "";
-  return `<div class="extras-block"><div class="extras-header">More from Zillow</div>${rows.join("")}</div>`;
+  let gallery = "";
+  if (e.photos && e.photos.length) {
+    const imgs = e.photos.map((p, i) => {
+      const alt = p.caption ? escapeHtml(p.caption) : `photo ${i + 1}`;
+      return `<a href="${escapeHtml(p.large)}" target="_blank" rel="noopener" title="${alt}"><img loading="lazy" src="${escapeHtml(p.medium)}" alt="${alt}"></a>`;
+    }).join("");
+    gallery = `<div class="extras-gallery">${imgs}</div>`;
+  }
+
+  if (!rows.length && !gallery) return "";
+  return `<div class="extras-block"><div class="extras-header">More from Zillow${e.photos?.length ? ` · ${e.photos.length} photos` : ""}</div>${rows.join("")}${gallery}</div>`;
 }
 
 function escapeHtml(s) {
@@ -856,10 +934,17 @@ function renderCard(r) {
     dateFact,
   ].filter(Boolean).join("");
 
+  const extras = getExtras(r);
+  const heroPhoto = extras?.photos?.[0];
+  const thumb = heroPhoto
+    ? `<a href="${escapeHtml(heroPhoto.large)}" target="_blank" rel="noopener" class="card-thumb-link" title="Open photo"><img class="card-thumb" src="${escapeHtml(heroPhoto.small)}" alt="listing photo" loading="lazy"></a>`
+    : "";
+
   return `
   <article class="card ${isOpen ? "open" : ""}" data-id="${escapeHtml(r._id)}">
     <div class="info">
       <div class="card-head">
+        ${thumb}
         <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(zip)}</span></div>
         <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
       </div>
