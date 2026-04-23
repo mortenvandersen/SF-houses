@@ -277,6 +277,23 @@
   }
   .scorer-note.read-only.empty { color: #aab8cc; }
 
+  .flag-row {
+    display: flex; gap: 6px;
+    padding-top: 8px; margin-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+  .flag-btn {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 6px; padding: 5px 6px;
+    font-size: 11px; cursor: pointer; text-align: center; font-weight: 500;
+    transition: background 80ms, color 80ms, border-color 80ms;
+  }
+  .flag-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .flag-btn.is-off-market { background: #fff0f0; border-color: var(--danger); color: var(--danger); font-weight: 700; }
+  .flag-btn.is-not-interesting { background: #f3f0ff; border-color: #7c5af6; color: #7c5af6; font-weight: 700; }
+  .card.is-off-market { opacity: 0.55; }
+  .card.is-not-interesting { opacity: 0.65; }
+
   .control.commute-filters {
     grid-column: span 2;
     gap: 2px;
@@ -360,6 +377,17 @@
       <select id="f-sort">
         <option value="price-asc">Price ↑</option>
         <option value="price-desc">Price ↓</option>
+        <option value="status-asc">Active first</option>
+        <option value="status-desc">Flagged first</option>
+      </select>
+    </div>
+    <div class="control">
+      <label>Status</label>
+      <select id="f-status">
+        <option value="all">All listings</option>
+        <option value="active">Active only</option>
+        <option value="off_market">Off market</option>
+        <option value="not_interesting">Not interesting</option>
       </select>
     </div>
     <div class="control">
@@ -417,12 +445,15 @@ const state = {
   // destination -> { mode: "Drive"|"Transit"|"Walk", maxMinutes: number|null }
   commute: {},
   sort: "price-desc",
+  statusFilter: "all",
   openIds: new Set(),
   scorer: SCORERS.includes(_storedScorer) ? _storedScorer : "",
   // listing_id -> { scorer -> { score, notes, updated_at } }
   scores: new Map(),
   // listing_url -> { description, scraped_at }
   extras: new Map(),
+  // listing_id -> { off_market, not_interesting }
+  flags: new Map(),
 };
 
 async function loadScores() {
@@ -444,6 +475,24 @@ async function loadExtras() {
   if (error) { console.error("loadExtras failed:", error); return; }
   state.extras = new Map();
   for (const row of data || []) state.extras.set(row.listing_url, row);
+}
+
+async function loadFlags() {
+  const { data, error } = await db
+    .from("listing_flags")
+    .select("listing_id, off_market, not_interesting");
+  if (error) { console.error("loadFlags failed:", error); return; }
+  state.flags = new Map();
+  for (const row of data || []) state.flags.set(row.listing_id, row);
+}
+
+async function saveFlag(listingId, field, value) {
+  const existing = state.flags.get(listingId) || { off_market: false, not_interesting: false };
+  const updated = { ...existing, listing_id: listingId, [field]: value, updated_at: new Date().toISOString() };
+  state.flags.set(listingId, updated);
+  render();
+  const { error } = await db.from("listing_flags").upsert(updated, { onConflict: "listing_id" });
+  if (error) console.error("saveFlag failed:", error);
 }
 
 function findAll(obj, key) {
@@ -676,6 +725,10 @@ function applyFilters() {
       const myScore = state.scores.get(r._id)?.get(state.scorer)?.score ?? 0;
       if (myScore < state.minStars) return false;
     }
+    const f = state.flags.get(r._id) || {};
+    if (state.statusFilter === "active" && (f.off_market || f.not_interesting)) return false;
+    if (state.statusFilter === "off_market" && !f.off_market) return false;
+    if (state.statusFilter === "not_interesting" && !f.not_interesting) return false;
     for (const dest of META.destinations) {
       const cfg = state.commute[dest];
       if (!cfg || cfg.maxMinutes == null) continue;
@@ -692,8 +745,16 @@ function applyFilters() {
     if (vb == null) return -1;
     return va - vb;
   };
+  const statusRank = (r) => {
+    const f = state.flags.get(r._id) || {};
+    if (f.off_market) return 2;
+    if (f.not_interesting) return 1;
+    return 0;
+  };
 
   if (state.sort === "price-desc") rows.sort((a, b) => -byPrice(a, b));
+  else if (state.sort === "status-asc") rows.sort((a, b) => statusRank(a) - statusRank(b) || byPrice(a, b));
+  else if (state.sort === "status-desc") rows.sort((a, b) => statusRank(b) - statusRank(a) || byPrice(a, b));
   else rows.sort(byPrice);
 
   return rows;
@@ -914,6 +975,19 @@ function scoreWidget(r) {
   return `<div class="score-box">${rows}</div>`;
 }
 
+function flagButtons(r) {
+  const f = state.flags.get(r._id) || {};
+  const id = escapeHtml(r._id);
+  return `<div class="flag-row">
+    <button class="flag-btn${f.off_market ? " is-off-market" : ""}" data-flag-id="${id}" data-flag="off_market">
+      ${f.off_market ? "✓ Off market" : "Off market"}
+    </button>
+    <button class="flag-btn${f.not_interesting ? " is-not-interesting" : ""}" data-flag-id="${id}" data-flag="not_interesting">
+      ${f.not_interesting ? "✓ Not interesting" : "Not interesting"}
+    </button>
+  </div>`;
+}
+
 function renderCard(r) {
   const beds = num(r, "Beds");
   const baths = num(r, "Baths");
@@ -934,6 +1008,9 @@ function renderCard(r) {
     dateFact,
   ].filter(Boolean).join("");
 
+  const fl = state.flags.get(r._id) || {};
+  const flagClass = fl.off_market ? " is-off-market" : fl.not_interesting ? " is-not-interesting" : "";
+
   const extras = getExtras(r);
   const heroPhoto = extras?.photos?.[0];
   const thumb = heroPhoto
@@ -941,7 +1018,7 @@ function renderCard(r) {
     : "";
 
   return `
-  <article class="card ${isOpen ? "open" : ""}" data-id="${escapeHtml(r._id)}">
+  <article class="card ${isOpen ? "open" : ""}${flagClass}" data-id="${escapeHtml(r._id)}">
     <div class="info">
       <div class="card-head">
         ${thumb}
@@ -968,7 +1045,10 @@ function renderCard(r) {
         ${description(r)}
       </div>
     </div>
-    <div class="score-panel">${scoreWidget(r)}</div>
+    <div class="score-panel">
+      ${scoreWidget(r)}
+      ${flagButtons(r)}
+    </div>
   </article>`;
 }
 
@@ -996,6 +1076,14 @@ function render() {
       const n = Number(star.getAttribute("data-score"));
       const current = state.scores.get(id)?.get(state.scorer)?.score;
       saveScore(id, current === n ? null : n);
+    });
+  });
+  grid.querySelectorAll(".flag-btn[data-flag-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-flag-id");
+      const field = btn.getAttribute("data-flag");
+      const current = !!(state.flags.get(id) || {})[field];
+      saveFlag(id, field, !current);
     });
   });
   grid.querySelectorAll(".scorer-note[data-note-id]").forEach((input) => {
@@ -1059,6 +1147,7 @@ function wireControls() {
   bind("f-baths", (e) => { state.minBaths = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-min-stars", (e) => { state.minStars = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-sort", (e) => { state.sort = e.target.value; render(); });
+  bind("f-status", (e) => { state.statusFilter = e.target.value; render(); });
 
   const scorer = document.getElementById("scorer-name");
   scorer.value = state.scorer;
@@ -1075,7 +1164,7 @@ META.destinations.forEach((d) => {
 populateCommuteRows();
 wireControls();
 render();
-Promise.all([loadScores(), loadExtras()]).then(render);
+Promise.all([loadScores(), loadExtras(), loadFlags()]).then(render);
 </script>
 </body>
 </html>
