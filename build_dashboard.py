@@ -24,6 +24,51 @@ DESTINATIONS = [
 ]
 MODES = ["Drive", "Walk", "Transit"]
 
+REGIONS = ["San Francisco", "Hillsborough area", "Oakland"]
+
+REGION_BY_COUNTY = {
+    "san francisco county": "San Francisco",
+    "san mateo county": "Hillsborough area",
+    "alameda county": "Oakland",
+    "contra costa county": "Oakland",
+}
+
+REGION_BY_CITY = {
+    "san francisco": "San Francisco",
+    "hillsborough": "Hillsborough area",
+    "burlingame": "Hillsborough area",
+    "san mateo": "Hillsborough area",
+    "millbrae": "Hillsborough area",
+    "belmont": "Hillsborough area",
+    "foster city": "Hillsborough area",
+    "san bruno": "Hillsborough area",
+    "south san francisco": "Hillsborough area",
+    "redwood city": "Hillsborough area",
+    "san carlos": "Hillsborough area",
+    "daly city": "Hillsborough area",
+    "brisbane": "Hillsborough area",
+    "pacifica": "Hillsborough area",
+    "oakland": "Oakland",
+    "berkeley": "Oakland",
+    "piedmont": "Oakland",
+    "emeryville": "Oakland",
+    "alameda": "Oakland",
+    "albany": "Oakland",
+    "el cerrito": "Oakland",
+    "san leandro": "Oakland",
+}
+
+
+def assign_region(row: dict) -> str:
+    county = (row.get("County") or "").strip().lower()
+    if county in REGION_BY_COUNTY:
+        return REGION_BY_COUNTY[county]
+    city = (row.get("City") or "").strip().lower()
+    if city in REGION_BY_CITY:
+        return REGION_BY_CITY[city]
+    return "Other"
+
+
 NUMERIC_FIELDS = {
     "Beds",
     "Baths",
@@ -81,6 +126,7 @@ def load_rows() -> list[dict]:
         out = dict(row)
         out["_priceValue"] = parse_price(row.get("Price", ""))
         out["_ppsfValue"] = parse_price(row.get("Price Per Sq. Ft.", ""))
+        out["_region"] = assign_region(row)
         for field in NUMERIC_FIELDS:
             if field in out:
                 out[f"_num:{field}"] = parse_number(out[field])
@@ -97,6 +143,7 @@ def main() -> None:
         "modes": MODES,
         "count": len(rows),
         "source": INPUT_CSV,
+        "regions": REGIONS,
     }
     meta_json = json.dumps(meta, ensure_ascii=False)
 
