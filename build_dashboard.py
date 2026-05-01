@@ -16,6 +16,54 @@ INPUT_CSV = "listings_with_distances.csv"
 TEMPLATE_HTML = "dashboard.template.html"
 OUTPUT_HTML = "index.html"
 
+# Group each listing into one of three search regions based on City/County.
+# Cities are matched case-insensitively; county is preferred when present.
+REGIONS = ["San Francisco", "Hillsborough area", "Oakland"]
+
+REGION_BY_COUNTY = {
+    "san francisco county": "San Francisco",
+    "san mateo county": "Hillsborough area",
+    "alameda county": "Oakland",
+    "contra costa county": "Oakland",
+}
+
+REGION_BY_CITY = {
+    "san francisco": "San Francisco",
+    # Peninsula / Hillsborough search area
+    "hillsborough": "Hillsborough area",
+    "burlingame": "Hillsborough area",
+    "san mateo": "Hillsborough area",
+    "millbrae": "Hillsborough area",
+    "belmont": "Hillsborough area",
+    "foster city": "Hillsborough area",
+    "san bruno": "Hillsborough area",
+    "south san francisco": "Hillsborough area",
+    "redwood city": "Hillsborough area",
+    "san carlos": "Hillsborough area",
+    "daly city": "Hillsborough area",
+    "brisbane": "Hillsborough area",
+    "pacifica": "Hillsborough area",
+    # East Bay / Oakland search area
+    "oakland": "Oakland",
+    "berkeley": "Oakland",
+    "piedmont": "Oakland",
+    "emeryville": "Oakland",
+    "alameda": "Oakland",
+    "albany": "Oakland",
+    "el cerrito": "Oakland",
+    "san leandro": "Oakland",
+}
+
+
+def assign_region(row: dict) -> str:
+    county = (row.get("County") or "").strip().lower()
+    if county in REGION_BY_COUNTY:
+        return REGION_BY_COUNTY[county]
+    city = (row.get("City") or "").strip().lower()
+    if city in REGION_BY_CITY:
+        return REGION_BY_CITY[city]
+    return "Other"
+
 # Friend / work destination names, as declared in distance_matrix.py.
 DESTINATIONS = [
     "Friend 1 (Cumberland)",
@@ -81,6 +129,7 @@ def load_rows() -> list[dict]:
         out = dict(row)
         out["_priceValue"] = parse_price(row.get("Price", ""))
         out["_ppsfValue"] = parse_price(row.get("Price Per Sq. Ft.", ""))
+        out["_region"] = assign_region(row)
         for field in NUMERIC_FIELDS:
             if field in out:
                 out[f"_num:{field}"] = parse_number(out[field])
@@ -97,6 +146,7 @@ def main() -> None:
         "modes": MODES,
         "count": len(rows),
         "source": INPUT_CSV,
+        "regions": REGIONS,
     }
     meta_json = json.dumps(meta, ensure_ascii=False)
 

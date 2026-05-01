@@ -382,6 +382,12 @@
       </select>
     </div>
     <div class="control">
+      <label>Region</label>
+      <select id="f-region">
+        <option value="">All regions</option>
+      </select>
+    </div>
+    <div class="control">
       <label>Status</label>
       <select id="f-status">
         <option value="all">All listings</option>
@@ -437,6 +443,7 @@ const SCORERS = ["Morten", "Victoria"];
 const _storedScorer = (localStorage.getItem("sf-scorer") || "").trim();
 const state = {
   search: "",
+  region: "",
   priceMin: 6500,
   priceMax: 11000,
   minBeds: null,
@@ -704,12 +711,13 @@ function applyFilters() {
     if (tokens.length) {
       const hay = [
         r["Address"], r["Short Address"], r["Zip"],
-        r["City"], r["County"], r["State"],
+        r["City"], r["County"], r["State"], r["_region"],
         r["Broker Name"], r["Listed By (Premium Data)"],
         r["Subdivision (Premium Data)"], r["Type"],
       ].filter(Boolean).join(" ").toLowerCase();
       if (!tokens.every((t) => hay.includes(t))) return false;
     }
+    if (state.region && r["_region"] !== state.region) return false;
     const p = r._priceValue;
     if (state.priceMin != null && (p == null || p < state.priceMin)) return false;
     if (state.priceMax != null && (p == null || p > state.priceMax)) return false;
@@ -996,6 +1004,8 @@ function renderCard(r) {
   const url = r["Listing URL"] || "";
   const short = r["Short Address"] || r["Address"] || "(no address)";
   const zip = r["Zip"] || "";
+  const city = r["City"] || "";
+  const cityLine = [city, zip].filter(Boolean).join(" · ");
   const isOpen = state.openIds.has(r._id);
   const dateInfo = listingDateInfo(r);
   const dateFact = dateInfo ? `<span class="fact" title="${escapeHtml(dateInfo.label + " " + dateInfo.date)}">${escapeHtml(dateInfo.label)} ${escapeHtml(fmtDate(dateInfo.date))}</span>` : "";
@@ -1022,7 +1032,7 @@ function renderCard(r) {
     <div class="info">
       <div class="card-head">
         ${thumb}
-        <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(zip)}</span></div>
+        <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(cityLine)}</span></div>
         <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
       </div>
       <div class="info-middle">
@@ -1148,6 +1158,18 @@ function wireControls() {
   bind("f-min-stars", (e) => { state.minStars = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-sort", (e) => { state.sort = e.target.value; render(); });
   bind("f-status", (e) => { state.statusFilter = e.target.value; render(); });
+
+  const regionSel = document.getElementById("f-region");
+  const regionList = (META.regions || []).slice();
+  if (RAW_DATA.some((r) => r["_region"] === "Other")) regionList.push("Other");
+  for (const region of regionList) {
+    const opt = document.createElement("option");
+    opt.value = region;
+    opt.textContent = region;
+    regionSel.appendChild(opt);
+  }
+  regionSel.value = state.region;
+  regionSel.addEventListener("input", (e) => { state.region = e.target.value; render(); });
 
   const scorer = document.getElementById("scorer-name");
   scorer.value = state.scorer;
