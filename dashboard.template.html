@@ -291,8 +291,10 @@
   .flag-btn:hover { border-color: var(--accent); color: var(--accent); }
   .flag-btn.is-off-market { background: #fff0f0; border-color: var(--danger); color: var(--danger); font-weight: 700; }
   .flag-btn.is-not-interesting { background: #f3f0ff; border-color: #7c5af6; color: #7c5af6; font-weight: 700; }
+  .flag-btn.is-review-together { background: #e6f7e1; border-color: #2e8b57; color: #2e8b57; font-weight: 700; }
   .card.is-off-market { opacity: 0.55; }
   .card.is-not-interesting { opacity: 0.65; }
+  .card.is-review-together { background: #f1faec; }
 
   .control.commute-filters {
     grid-column: span 2;
@@ -394,6 +396,7 @@
         <option value="active">Active only</option>
         <option value="off_market">Off market</option>
         <option value="not_interesting">Not interesting</option>
+        <option value="review_together">Review together</option>
       </select>
     </div>
     <div class="control">
@@ -487,14 +490,14 @@ async function loadExtras() {
 async function loadFlags() {
   const { data, error } = await db
     .from("listing_flags")
-    .select("listing_id, off_market, not_interesting");
+    .select("listing_id, off_market, not_interesting, review_together");
   if (error) { console.error("loadFlags failed:", error); return; }
   state.flags = new Map();
   for (const row of data || []) state.flags.set(row.listing_id, row);
 }
 
 async function saveFlag(listingId, field, value) {
-  const existing = state.flags.get(listingId) || { off_market: false, not_interesting: false };
+  const existing = state.flags.get(listingId) || { off_market: false, not_interesting: false, review_together: false };
   const updated = { ...existing, listing_id: listingId, [field]: value, updated_at: new Date().toISOString() };
   state.flags.set(listingId, updated);
   render();
@@ -738,6 +741,7 @@ function applyFilters() {
     if (state.statusFilter === "active" && (f.off_market || f.not_interesting)) return false;
     if (state.statusFilter === "off_market" && !f.off_market) return false;
     if (state.statusFilter === "not_interesting" && !f.not_interesting) return false;
+    if (state.statusFilter === "review_together" && !f.review_together) return false;
     for (const dest of META.destinations) {
       const cfg = state.commute[dest];
       if (!cfg || cfg.maxMinutes == null) continue;
@@ -997,6 +1001,9 @@ function flagButtons(r) {
     <button class="flag-btn${f.not_interesting ? " is-not-interesting" : ""}" data-flag-id="${id}" data-flag="not_interesting">
       ${f.not_interesting ? "✓ Not interesting" : "Not interesting"}
     </button>
+    <button class="flag-btn${f.review_together ? " is-review-together" : ""}" data-flag-id="${id}" data-flag="review_together">
+      ${f.review_together ? "✓ Review together" : "Review together"}
+    </button>
   </div>`;
 }
 
@@ -1023,7 +1030,7 @@ function renderCard(r) {
   ].filter(Boolean).join("");
 
   const fl = state.flags.get(r._id) || {};
-  const flagClass = fl.off_market ? " is-off-market" : fl.not_interesting ? " is-not-interesting" : "";
+  const flagClass = fl.off_market ? " is-off-market" : fl.not_interesting ? " is-not-interesting" : fl.review_together ? " is-review-together" : "";
 
   const extras = getExtras(r);
   const heroPhoto = extras?.photos?.[0];
