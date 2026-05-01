@@ -10,6 +10,7 @@ Re-run this script whenever listings_with_distances.csv changes.
 import csv
 import json
 import re
+from datetime import date, timedelta
 from pathlib import Path
 
 INPUT_CSV = "listings_with_distances.csv"
@@ -127,6 +128,27 @@ def parse_iso_date(raw: str) -> str | None:
     return m.group(0) if m else None
 
 
+def parse_days_on_zillow(raw: str) -> int | None:
+    """Parse 'Days on Zillow' values like '5', '0', or '12 hours' into days."""
+    if not raw:
+        return None
+    s = raw.strip().lower()
+    if "hour" in s:
+        return 0
+    m = re.match(r"\d+", s)
+    return int(m.group(0)) if m else None
+
+
+def listed_date_from(scraped_iso: str | None, days_on_zillow: int | None) -> str | None:
+    if not scraped_iso or days_on_zillow is None:
+        return None
+    try:
+        d = date.fromisoformat(scraped_iso) - timedelta(days=days_on_zillow)
+    except ValueError:
+        return None
+    return d.isoformat()
+
+
 def load_rows() -> list[dict]:
     with open(INPUT_CSV, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -138,10 +160,11 @@ def load_rows() -> list[dict]:
         out["_priceValue"] = parse_price(row.get("Price", ""))
         out["_ppsfValue"] = parse_price(row.get("Price Per Sq. Ft.", ""))
         out["_region"] = assign_region(row)
-        listed = parse_iso_date(row.get("Most Recent Date Listed for Sale", ""))
         scraped = parse_iso_date(row.get("Date Scraped", ""))
-        out["_listedDate"] = listed
+        days = parse_days_on_zillow(row.get("Days on Zillow", ""))
+        listed = listed_date_from(scraped, days)
         out["_scrapedDate"] = scraped
+        out["_listedDate"] = listed
         out["_sortDate"] = listed or scraped
         for field in NUMERIC_FIELDS:
             if field in out:
