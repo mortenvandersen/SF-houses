@@ -377,8 +377,8 @@
       <select id="f-sort">
         <option value="price-asc">Price ↑</option>
         <option value="price-desc">Price ↓</option>
-        <option value="status-asc">Active first</option>
-        <option value="status-desc">Flagged first</option>
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
       </select>
     </div>
     <div class="control">
@@ -754,16 +754,19 @@ function applyFilters() {
     if (vb == null) return -1;
     return va - vb;
   };
-  const statusRank = (r) => {
-    const f = state.flags.get(r._id) || {};
-    if (f.off_market) return 2;
-    if (f.not_interesting) return 1;
+  const byDate = (a, b) => {
+    const va = a._sortDate; const vb = b._sortDate;
+    if (!va && !vb) return 0;
+    if (!va) return 1;
+    if (!vb) return -1;
+    if (va < vb) return -1;
+    if (va > vb) return 1;
     return 0;
   };
 
   if (state.sort === "price-desc") rows.sort((a, b) => -byPrice(a, b));
-  else if (state.sort === "status-asc") rows.sort((a, b) => statusRank(a) - statusRank(b) || byPrice(a, b));
-  else if (state.sort === "status-desc") rows.sort((a, b) => statusRank(b) - statusRank(a) || byPrice(a, b));
+  else if (state.sort === "date-desc") rows.sort((a, b) => -byDate(a, b) || byPrice(a, b));
+  else if (state.sort === "date-asc") rows.sort((a, b) => byDate(a, b) || byPrice(a, b));
   else rows.sort(byPrice);
 
   return rows;

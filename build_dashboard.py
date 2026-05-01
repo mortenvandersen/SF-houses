@@ -116,6 +116,17 @@ def parse_number(raw: str) -> float | None:
         return None
 
 
+ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def parse_iso_date(raw: str) -> str | None:
+    """Extract an ISO YYYY-MM-DD date from values like 'Thu, 2026-04-16'."""
+    if not raw:
+        return None
+    m = ISO_DATE_RE.search(raw)
+    return m.group(0) if m else None
+
+
 def load_rows() -> list[dict]:
     with open(INPUT_CSV, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -127,6 +138,11 @@ def load_rows() -> list[dict]:
         out["_priceValue"] = parse_price(row.get("Price", ""))
         out["_ppsfValue"] = parse_price(row.get("Price Per Sq. Ft.", ""))
         out["_region"] = assign_region(row)
+        listed = parse_iso_date(row.get("Most Recent Date Listed for Sale", ""))
+        scraped = parse_iso_date(row.get("Date Scraped", ""))
+        out["_listedDate"] = listed
+        out["_scrapedDate"] = scraped
+        out["_sortDate"] = listed or scraped
         for field in NUMERIC_FIELDS:
             if field in out:
                 out[f"_num:{field}"] = parse_number(out[field])
