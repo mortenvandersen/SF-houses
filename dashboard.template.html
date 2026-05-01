@@ -377,8 +377,8 @@
       <select id="f-sort">
         <option value="price-asc">Price ↑</option>
         <option value="price-desc">Price ↓</option>
-        <option value="status-asc">Active first</option>
-        <option value="status-desc">Flagged first</option>
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
       </select>
     </div>
     <div class="control">
@@ -754,16 +754,17 @@ function applyFilters() {
     if (vb == null) return -1;
     return va - vb;
   };
-  const statusRank = (r) => {
-    const f = state.flags.get(r._id) || {};
-    if (f.off_market) return 2;
-    if (f.not_interesting) return 1;
-    return 0;
+  const byDate = (a, b) => {
+    const va = listingTimestamp(a); const vb = listingTimestamp(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return va - vb;
   };
 
   if (state.sort === "price-desc") rows.sort((a, b) => -byPrice(a, b));
-  else if (state.sort === "status-asc") rows.sort((a, b) => statusRank(a) - statusRank(b) || byPrice(a, b));
-  else if (state.sort === "status-desc") rows.sort((a, b) => statusRank(b) - statusRank(a) || byPrice(a, b));
+  else if (state.sort === "date-desc") rows.sort((a, b) => -byDate(a, b) || byPrice(a, b));
+  else if (state.sort === "date-asc") rows.sort((a, b) => byDate(a, b) || byPrice(a, b));
   else rows.sort(byPrice);
 
   return rows;
@@ -931,6 +932,15 @@ function listingDateInfo(r) {
   }
   if (scrapeIso) return { label: "Scraped", date: scrapeIso };
   return null;
+}
+
+function listingTimestamp(r) {
+  const info = listingDateInfo(r);
+  if (!info) return null;
+  const m = String(info.date).match(/(\d{4}-\d{2}-\d{2})/);
+  if (!m) return null;
+  const t = Date.parse(m[1] + "T00:00:00");
+  return isNaN(t) ? null : t;
 }
 
 function kvRows(r) {
