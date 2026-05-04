@@ -115,6 +115,124 @@
     padding-top: 14px;
     border-top: 1px solid var(--border);
   }
+
+  .panel-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(11, 37, 69, 0.28);
+    z-index: 40;
+    opacity: 0; pointer-events: none;
+    transition: opacity 160ms ease;
+  }
+  .panel-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+  .filter-panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 360px; max-width: 92vw;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    z-index: 50;
+    transform: translateX(100%);
+    transition: transform 200ms ease;
+    display: flex; flex-direction: column;
+    box-shadow: -8px 0 24px rgba(11, 37, 69, 0.10);
+  }
+  .filter-panel.is-open { transform: translateX(0); }
+
+  .filter-panel header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-panel header h2 {
+    margin: 0; font-size: 18px; font-weight: 700; color: var(--accent-strong);
+  }
+  .filter-panel .close-btn {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--muted); padding: 4px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .filter-panel .close-btn:hover { color: var(--text); background: var(--panel-2); }
+  .filter-panel .close-btn svg { width: 18px; height: 18px; }
+
+  .filter-panel .body {
+    flex: 1; overflow-y: auto;
+    padding: 18px 22px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+
+  .filter-panel .group { display: flex; flex-direction: column; gap: 8px; }
+  .filter-panel .group > .label {
+    font-size: 13px; font-weight: 600; color: var(--text);
+  }
+
+  .filter-panel .price-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .filter-panel .price-inputs input {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; outline: none;
+    width: 100%; height: 40px;
+  }
+  .filter-panel .price-inputs input:focus { border-color: var(--accent); }
+
+  .rating-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .rating-chip {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px;
+    cursor: pointer; min-width: 44px; text-align: center;
+    transition: background 80ms, color 80ms, border-color 80ms;
+  }
+  .rating-chip:hover { border-color: var(--accent); }
+  .rating-chip.is-active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .radio-list { display: flex; flex-direction: column; gap: 6px; }
+  .radio-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 4px; cursor: pointer;
+    font-size: 14px; color: var(--text);
+    border-radius: 6px;
+  }
+  .radio-row:hover { background: var(--panel-2); }
+  .radio-row input[type="radio"] {
+    margin: 0; width: 16px; height: 16px;
+    accent-color: var(--accent);
+  }
+
+  .extras-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .extras-grid label {
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 12px; color: var(--muted);
+  }
+  .extras-grid select {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 13px; height: 38px;
+    outline: none;
+  }
+  .extras-grid select:focus { border-color: var(--accent); }
+
+  .filter-panel footer {
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    background: var(--panel);
+  }
+  .filter-panel footer button {
+    height: 44px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border);
+  }
+  .filter-panel .btn-reset {
+    background: var(--panel); color: var(--text);
+  }
+  .filter-panel .btn-reset:hover { border-color: var(--accent); }
+  .filter-panel .btn-apply {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .filter-panel .btn-apply:hover { background: #163d7a; border-color: #163d7a; }
   .control { display: flex; flex-direction: column; gap: 2px; }
   .control label { font-size: 10px; color: var(--muted); letter-spacing: 0.3px; }
   .control input, .control select {
@@ -473,75 +591,94 @@
     </button>
   </div>
   <div class="controls" id="controls-panel">
-    <div class="control stacked">
-      <div class="inline-row">
-        <span class="mini">Min $</span>
-        <input id="f-price-min" type="number" min="0" step="100" placeholder="0">
-      </div>
-      <div class="inline-row">
-        <span class="mini">Max $</span>
-        <input id="f-price-max" type="number" min="0" step="100" placeholder="any">
-      </div>
-    </div>
-    <div class="control stacked">
-      <div class="inline-row">
-        <span class="mini">Beds</span>
-        <select id="f-beds">
-          <option value="">Any</option>
-          <option value="1">1+</option>
-          <option value="2">2+</option>
-          <option value="3">3+</option>
-          <option value="4">4+</option>
-        </select>
-      </div>
-      <div class="inline-row">
-        <span class="mini">Baths</span>
-        <select id="f-baths">
-          <option value="">Any</option>
-          <option value="1">1+</option>
-          <option value="2">2+</option>
-          <option value="3">3+</option>
-        </select>
-      </div>
-    </div>
-    <div class="control">
-      <label>Min stars</label>
-      <select id="f-min-stars">
-        <option value="">Any</option>
-        <option value="1">≥ 1 ★</option>
-        <option value="2">≥ 2 ★</option>
-        <option value="3">≥ 3 ★</option>
-        <option value="4">≥ 4 ★</option>
-        <option value="5">5 ★</option>
-      </select>
-    </div>
-    <div class="control">
-      <label>Region</label>
-      <select id="f-region">
-        <option value="">All regions</option>
-      </select>
-    </div>
-    <div class="control">
-      <label>Status</label>
-      <select id="f-status">
-        <option value="all">All listings</option>
-        <option value="active">Active only</option>
-        <option value="off_market">Off market</option>
-        <option value="not_interesting">Not interesting</option>
-        <option value="review_together">Review together</option>
-      </select>
-    </div>
-    <div class="control">
-      <label>I am</label>
-      <select id="scorer-name">
-        <option value="">— (read only)</option>
-        <option value="Morten">Morten</option>
-        <option value="Victoria">Victoria</option>
-      </select>
-    </div>
     <div class="control commute-filters" id="commute-filters"></div>
   </div>
 </header>
+
+<div class="panel-backdrop" id="panel-backdrop"></div>
+<aside class="filter-panel" id="filter-panel" aria-hidden="true">
+  <header>
+    <h2>Filters</h2>
+    <button type="button" class="close-btn" id="filter-close" aria-label="Close filters">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </header>
+  <div class="body">
+    <div class="group">
+      <div class="label">Price Range</div>
+      <div class="price-inputs">
+        <input id="f-price-min" type="number" min="0" step="100" placeholder="Min">
+        <input id="f-price-max" type="number" min="0" step="100" placeholder="Max">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="label">Minimum Rating</div>
+      <div class="rating-chips" id="rating-chips" role="radiogroup" aria-label="Minimum rating">
+        <button type="button" class="rating-chip" data-stars="">Any</button>
+        <button type="button" class="rating-chip" data-stars="1">1★</button>
+        <button type="button" class="rating-chip" data-stars="2">2★</button>
+        <button type="button" class="rating-chip" data-stars="3">3★</button>
+        <button type="button" class="rating-chip" data-stars="4">4★</button>
+        <button type="button" class="rating-chip" data-stars="5">5★</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="label">Region</div>
+      <div class="radio-list" id="region-radios" role="radiogroup" aria-label="Region">
+        <label class="radio-row"><input type="radio" name="region" value=""> All Regions</label>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="label">Status</div>
+      <div class="radio-list" id="status-radios" role="radiogroup" aria-label="Status">
+        <label class="radio-row"><input type="radio" name="status" value="all"> All Statuses</label>
+        <label class="radio-row"><input type="radio" name="status" value="available"> Available</label>
+        <label class="radio-row"><input type="radio" name="status" value="scheduled_tour"> Scheduled Tour</label>
+        <label class="radio-row"><input type="radio" name="status" value="applied"> Applied</label>
+        <label class="radio-row"><input type="radio" name="status" value="review_together"> Review Together</label>
+        <label class="radio-row"><input type="radio" name="status" value="off_market"> Off Market</label>
+        <label class="radio-row"><input type="radio" name="status" value="not_interesting"> Not Interested</label>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="label">More</div>
+      <div class="extras-grid">
+        <label>Beds
+          <select id="f-beds">
+            <option value="">Any</option>
+            <option value="1">1+</option>
+            <option value="2">2+</option>
+            <option value="3">3+</option>
+            <option value="4">4+</option>
+          </select>
+        </label>
+        <label>Baths
+          <select id="f-baths">
+            <option value="">Any</option>
+            <option value="1">1+</option>
+            <option value="2">2+</option>
+            <option value="3">3+</option>
+          </select>
+        </label>
+        <label style="grid-column: span 2">I am
+          <select id="scorer-name">
+            <option value="">— (read only)</option>
+            <option value="Morten">Morten</option>
+            <option value="Victoria">Victoria</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <button type="button" class="btn-reset" id="filter-reset">Reset</button>
+    <button type="button" class="btn-apply" id="filter-apply">Apply</button>
+  </footer>
+</aside>
 <main>
   <div class="grid" id="grid"></div>
 </main>
@@ -571,8 +708,8 @@ const _storedScorer = (localStorage.getItem("sf-scorer") || "").trim();
 const state = {
   search: "",
   region: "",
-  priceMin: 6500,
-  priceMax: 11000,
+  priceMin: null,
+  priceMax: null,
   minBeds: null,
   minBaths: null,
   minStars: null,
@@ -877,10 +1014,14 @@ function applyFilters() {
       if (myScore < state.minStars) return false;
     }
     const f = state.flags.get(r._id) || {};
-    if (state.statusFilter === "active" && (f.off_market || f.not_interesting)) return false;
-    if (state.statusFilter === "off_market" && !f.off_market) return false;
-    if (state.statusFilter === "not_interesting" && !f.not_interesting) return false;
-    if (state.statusFilter === "review_together" && !f.review_together) return false;
+    const rowStatus = activeStatus(f);
+    if (state.statusFilter && state.statusFilter !== "all") {
+      if (state.statusFilter === "available") {
+        if (rowStatus) return false;
+      } else if (rowStatus !== state.statusFilter) {
+        return false;
+      }
+    }
     for (const dest of META.destinations) {
       const cfg = state.commute[dest];
       if (!cfg || cfg.maxMinutes == null) continue;
@@ -1344,42 +1485,111 @@ function populateCommuteRows() {
   });
 }
 
-function wireControls() {
-  const bind = (id, handler) => document.getElementById(id).addEventListener("input", handler);
+const FILTER_DEFAULTS = {
+  search: "",
+  priceMin: null,
+  priceMax: null,
+  minBeds: null,
+  minBaths: null,
+  minStars: null,
+  region: "",
+  statusFilter: "all",
+};
+
+function syncRatingChips() {
+  const cur = state.minStars == null ? "" : String(state.minStars);
+  document.querySelectorAll("#rating-chips .rating-chip").forEach((chip) => {
+    chip.classList.toggle("is-active", chip.getAttribute("data-stars") === cur);
+  });
+}
+function syncRegionRadios() {
+  document.querySelectorAll('#region-radios input[name="region"]').forEach((r) => {
+    r.checked = (r.value === (state.region || ""));
+  });
+}
+function syncStatusRadios() {
+  document.querySelectorAll('#status-radios input[name="status"]').forEach((r) => {
+    r.checked = (r.value === (state.statusFilter || "all"));
+  });
+}
+function syncFilterInputs() {
   document.getElementById("f-price-min").value = state.priceMin ?? "";
   document.getElementById("f-price-max").value = state.priceMax ?? "";
+  document.getElementById("f-beds").value = state.minBeds == null ? "" : String(state.minBeds);
+  document.getElementById("f-baths").value = state.minBaths == null ? "" : String(state.minBaths);
+  document.getElementById("scorer-name").value = state.scorer || "";
+  syncRatingChips();
+  syncRegionRadios();
+  syncStatusRadios();
+}
+
+function wireControls() {
+  const bind = (id, handler) => document.getElementById(id).addEventListener("input", handler);
   document.getElementById("f-sort").value = state.sort;
   bind("f-search", (e) => { state.search = e.target.value; render(); });
   bind("f-price-min", (e) => { state.priceMin = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-price-max", (e) => { state.priceMax = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-beds", (e) => { state.minBeds = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-baths", (e) => { state.minBaths = e.target.value ? Number(e.target.value) : null; render(); });
-  bind("f-min-stars", (e) => { state.minStars = e.target.value ? Number(e.target.value) : null; render(); });
   bind("f-sort", (e) => { state.sort = e.target.value; render(); });
-  bind("f-status", (e) => { state.statusFilter = e.target.value; render(); });
 
-  const regionSel = document.getElementById("f-region");
+  // Region radios — populate from META.regions then bind.
+  const regionList = document.getElementById("region-radios");
   const regions = [...(META.regions || [])];
   if (RAW_DATA.some((r) => r["_region"] === "Other") && !regions.includes("Other")) {
     regions.push("Other");
   }
   for (const region of regions) {
-    const opt = document.createElement("option");
-    opt.value = region;
-    opt.textContent = region;
-    regionSel.appendChild(opt);
+    const lbl = document.createElement("label");
+    lbl.className = "radio-row";
+    lbl.innerHTML = `<input type="radio" name="region" value="${escapeHtml(region)}"> ${escapeHtml(region)}`;
+    regionList.appendChild(lbl);
   }
-  regionSel.value = state.region;
-  regionSel.addEventListener("input", (e) => { state.region = e.target.value; render(); });
+  regionList.addEventListener("change", (e) => {
+    if (e.target.name !== "region") return;
+    state.region = e.target.value;
+    render();
+  });
 
-  const scorer = document.getElementById("scorer-name");
-  scorer.value = state.scorer;
-  scorer.addEventListener("input", (e) => {
+  // Status radios.
+  document.getElementById("status-radios").addEventListener("change", (e) => {
+    if (e.target.name !== "status") return;
+    state.statusFilter = e.target.value;
+    render();
+  });
+
+  // Rating chips.
+  document.getElementById("rating-chips").addEventListener("click", (e) => {
+    const chip = e.target.closest(".rating-chip");
+    if (!chip) return;
+    const v = chip.getAttribute("data-stars");
+    state.minStars = v === "" ? null : Number(v);
+    syncRatingChips();
+    render();
+  });
+
+  // Scorer.
+  document.getElementById("scorer-name").addEventListener("input", (e) => {
     state.scorer = e.target.value.trim();
     localStorage.setItem("sf-scorer", state.scorer);
     render();
   });
+
+  // Reset / Apply.
+  document.getElementById("filter-reset").addEventListener("click", () => {
+    Object.assign(state, FILTER_DEFAULTS);
+    document.getElementById("f-search").value = "";
+    syncFilterInputs();
+    render();
+  });
+  document.getElementById("filter-apply").addEventListener("click", () => {
+    closeFilterPanel();
+  });
+
+  syncFilterInputs();
 }
+
+let closeFilterPanel = () => {};
 
 META.destinations.forEach((d) => {
   state.commute[d] = { mode: "Drive", maxMinutes: null };
@@ -1388,35 +1598,54 @@ populateCommuteRows();
 wireControls();
 
 (function wireToolbar() {
-  const panel = document.getElementById("controls-panel");
   const filtersBtn = document.getElementById("btn-filters");
   const travelBtn = document.getElementById("btn-travel");
-  const open = () => {
-    panel.classList.add("is-open");
+  const fpanel = document.getElementById("filter-panel");
+  const backdrop = document.getElementById("panel-backdrop");
+  const closeBtn = document.getElementById("filter-close");
+  const travelDrawer = document.getElementById("controls-panel");
+
+  const openFilter = () => {
+    fpanel.classList.add("is-open");
+    backdrop.classList.add("is-open");
+    fpanel.setAttribute("aria-hidden", "false");
     filtersBtn.classList.add("is-active");
     filtersBtn.setAttribute("aria-expanded", "true");
   };
-  const close = () => {
-    panel.classList.remove("is-open");
+  closeFilterPanel = () => {
+    fpanel.classList.remove("is-open");
+    backdrop.classList.remove("is-open");
+    fpanel.setAttribute("aria-hidden", "true");
     filtersBtn.classList.remove("is-active");
-    travelBtn.classList.remove("is-active");
     filtersBtn.setAttribute("aria-expanded", "false");
-    travelBtn.setAttribute("aria-expanded", "false");
   };
+
   filtersBtn.addEventListener("click", () => {
-    if (panel.classList.contains("is-open") && !travelBtn.classList.contains("is-active")) {
-      close();
-    } else {
-      open();
-      travelBtn.classList.remove("is-active");
-      travelBtn.setAttribute("aria-expanded", "false");
+    if (fpanel.classList.contains("is-open")) closeFilterPanel(); else openFilter();
+  });
+  closeBtn.addEventListener("click", closeFilterPanel);
+  backdrop.addEventListener("click", () => {
+    closeFilterPanel();
+    closeTravelDrawer();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeFilterPanel();
+      closeTravelDrawer();
     }
   });
+
+  // Travel Time still uses the legacy drawer for now (replaced in Chunk 5).
+  const closeTravelDrawer = () => {
+    travelDrawer.classList.remove("is-open");
+    travelBtn.classList.remove("is-active");
+    travelBtn.setAttribute("aria-expanded", "false");
+  };
   travelBtn.addEventListener("click", () => {
-    if (panel.classList.contains("is-open") && travelBtn.classList.contains("is-active")) {
-      close();
+    if (travelDrawer.classList.contains("is-open")) {
+      closeTravelDrawer();
     } else {
-      open();
+      travelDrawer.classList.add("is-open");
       travelBtn.classList.add("is-active");
       travelBtn.setAttribute("aria-expanded", "true");
     }
