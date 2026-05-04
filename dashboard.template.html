@@ -28,22 +28,92 @@
 
   header.topbar {
     position: sticky; top: 0; z-index: 10;
-    background: linear-gradient(180deg, #ffffff 0%, #ffffffee 100%);
-    backdrop-filter: blur(6px);
+    background: #ffffff;
     border-bottom: 1px solid var(--border);
-    padding: 8px 16px;
-    box-shadow: 0 1px 3px rgba(11, 37, 69, 0.05);
+    padding: 18px 28px 14px;
+    box-shadow: 0 1px 3px rgba(11, 37, 69, 0.04);
   }
-  .title-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .title-row h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
-  .stats { display: flex; gap: 12px; color: var(--muted); font-size: 11px; flex-wrap: wrap; }
+  .title-row { display: flex; align-items: flex-start; gap: 16px; }
+  .title-row .titles { flex: 1; min-width: 0; }
+  .title-row h1 {
+    margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.4px;
+    color: var(--accent-strong);
+  }
+  .title-row .count {
+    margin-top: 2px; font-size: 13px; color: var(--muted);
+  }
+  .stats {
+    display: flex; gap: 14px; color: var(--muted); font-size: 12px;
+    flex-wrap: wrap; margin-top: 4px;
+  }
   .stats b { color: var(--text); font-weight: 600; }
 
+  .toolbar {
+    display: flex; gap: 10px; align-items: center;
+    margin-top: 14px; flex-wrap: wrap;
+  }
+  .search-wrap {
+    flex: 1; min-width: 220px;
+    position: relative;
+  }
+  .search-wrap input {
+    width: 100%;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px 10px 38px;
+    font-size: 14px; outline: none;
+    height: 42px;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap::before {
+    content: ""; position: absolute; left: 13px; top: 50%;
+    width: 16px; height: 16px; transform: translateY(-50%);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c7a99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>");
+    background-repeat: no-repeat; background-size: contain;
+  }
+
+  .tool-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 0 14px; height: 42px;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: border-color 80ms, background 80ms;
+  }
+  .tool-btn:hover { border-color: var(--accent); }
+  .tool-btn.is-active { border-color: var(--accent); background: var(--panel-2); }
+  .tool-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sort-wrap { position: relative; }
+  .sort-wrap select.tool-btn {
+    appearance: none; -webkit-appearance: none;
+    padding-right: 34px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b2545' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+  }
+
+  .add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent); color: #fff;
+    border: 1px solid var(--accent); border-radius: 10px;
+    padding: 0 16px; height: 42px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .add-btn:hover { background: #163d7a; border-color: #163d7a; }
+
   .controls {
+    display: none;
+  }
+  .controls.is-open {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 6px 10px;
-    margin-top: 6px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
   }
   .control { display: flex; flex-direction: column; gap: 2px; }
   .control label { font-size: 10px; color: var(--muted); letter-spacing: 0.3px; }
@@ -324,14 +394,35 @@
 <body>
 <header class="topbar">
   <div class="title-row">
-    <h1>SF Rentals Dashboard</h1>
-    <div class="stats" id="stats"></div>
-  </div>
-  <div class="controls">
-    <div class="control">
-      <label>Search</label>
-      <input id="f-search" type="text" placeholder="Address, neighborhood, broker…">
+    <div class="titles">
+      <h1>Apartment Search</h1>
+      <div class="count" id="count-line">Loading…</div>
+      <div class="stats" id="stats"></div>
     </div>
+  </div>
+  <div class="toolbar">
+    <div class="search-wrap">
+      <input id="f-search" type="text" placeholder="Search by address, city, zip, neighborhood…">
+    </div>
+    <button type="button" class="tool-btn" id="btn-filters" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filters
+    </button>
+    <div class="sort-wrap">
+      <select class="tool-btn" id="f-sort" aria-label="Sort">
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+        <option value="stars-desc">Stars: High to Low</option>
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
+      </select>
+    </div>
+    <button type="button" class="tool-btn" id="btn-travel" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Travel Time
+    </button>
+  </div>
+  <div class="controls" id="controls-panel">
     <div class="control stacked">
       <div class="inline-row">
         <span class="mini">Min $</span>
@@ -375,15 +466,6 @@
       </select>
     </div>
     <div class="control">
-      <label>Sort by</label>
-      <select id="f-sort">
-        <option value="price-asc">Price ↑</option>
-        <option value="price-desc">Price ↓</option>
-        <option value="date-desc">Newest first</option>
-        <option value="date-asc">Oldest first</option>
-      </select>
-    </div>
-    <div class="control">
       <label>Region</label>
       <select id="f-region">
         <option value="">All regions</option>
@@ -411,7 +493,6 @@
   </div>
 </header>
 <main>
-  <div class="count-line" id="count-line"></div>
   <div class="grid" id="grid"></div>
 </main>
 
@@ -454,7 +535,7 @@ const state = {
   minStars: null,
   // destination -> { mode: "Drive"|"Transit"|"Walk", maxMinutes: number|null }
   commute: {},
-  sort: "price-desc",
+  sort: "price-asc",
   statusFilter: "all",
   openIds: new Set(),
   scorer: SCORERS.includes(_storedScorer) ? _storedScorer : "",
@@ -768,9 +849,16 @@ function applyFilters() {
     return 0;
   };
 
+  const myStars = (r) => {
+    if (!state.scorer) return 0;
+    return state.scores.get(r._id)?.get(state.scorer)?.score ?? 0;
+  };
+  const byStars = (a, b) => myStars(a) - myStars(b);
+
   if (state.sort === "price-desc") rows.sort((a, b) => -byPrice(a, b));
   else if (state.sort === "date-desc") rows.sort((a, b) => -byDate(a, b) || byPrice(a, b));
   else if (state.sort === "date-asc") rows.sort((a, b) => byDate(a, b) || byPrice(a, b));
+  else if (state.sort === "stars-desc") rows.sort((a, b) => -byStars(a, b) || byPrice(a, b));
   else rows.sort(byPrice);
 
   return rows;
@@ -1078,7 +1166,7 @@ function render() {
   renderStats(visible);
   const grid = document.getElementById("grid");
   const countEl = document.getElementById("count-line");
-  countEl.textContent = `Showing ${visible.length} listing${visible.length === 1 ? "" : "s"}.`;
+  countEl.textContent = `${visible.length} listing${visible.length === 1 ? "" : "s"} found`;
   if (!visible.length) {
     grid.innerHTML = `<div class="empty-state">No listings match your filters.</div>`;
     return;
@@ -1198,6 +1286,43 @@ META.destinations.forEach((d) => {
 });
 populateCommuteRows();
 wireControls();
+
+(function wireToolbar() {
+  const panel = document.getElementById("controls-panel");
+  const filtersBtn = document.getElementById("btn-filters");
+  const travelBtn = document.getElementById("btn-travel");
+  const open = () => {
+    panel.classList.add("is-open");
+    filtersBtn.classList.add("is-active");
+    filtersBtn.setAttribute("aria-expanded", "true");
+  };
+  const close = () => {
+    panel.classList.remove("is-open");
+    filtersBtn.classList.remove("is-active");
+    travelBtn.classList.remove("is-active");
+    filtersBtn.setAttribute("aria-expanded", "false");
+    travelBtn.setAttribute("aria-expanded", "false");
+  };
+  filtersBtn.addEventListener("click", () => {
+    if (panel.classList.contains("is-open") && !travelBtn.classList.contains("is-active")) {
+      close();
+    } else {
+      open();
+      travelBtn.classList.remove("is-active");
+      travelBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+  travelBtn.addEventListener("click", () => {
+    if (panel.classList.contains("is-open") && travelBtn.classList.contains("is-active")) {
+      close();
+    } else {
+      open();
+      travelBtn.classList.add("is-active");
+      travelBtn.setAttribute("aria-expanded", "true");
+    }
+  });
+})();
+
 render();
 Promise.all([loadScores(), loadExtras(), loadFlags()]).then(render);
 </script>
