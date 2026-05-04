@@ -577,7 +577,7 @@
   </div>
   <div class="toolbar">
     <div class="search-wrap">
-      <input id="f-search" type="text" placeholder="Search by address, city, zip, neighborhood…">
+      <input id="f-search" type="text" placeholder="Search by street, city, zip, neighborhood, region…">
     </div>
     <button type="button" class="tool-btn" id="btn-filters" aria-expanded="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -997,10 +997,9 @@ function applyFilters() {
   let rows = RAW_DATA.filter((r) => {
     if (tokens.length) {
       const hay = [
-        r["Address"], r["Short Address"], r["Zip"],
-        r["City"], r["County"], r["State"],
-        r["Broker Name"], r["Listed By (Premium Data)"],
-        r["Subdivision (Premium Data)"], r["Type"],
+        r["Address"], r["Short Address"],
+        r["City"], r["County"], r["State"], r["Zip"],
+        r["Subdivision (Premium Data)"],
         r["_region"],
       ].filter(Boolean).join(" ").toLowerCase();
       if (!tokens.every((t) => hay.includes(t))) return false;
