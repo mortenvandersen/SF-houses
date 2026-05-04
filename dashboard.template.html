@@ -816,14 +816,13 @@
 
     <div class="group">
       <div class="label">Status</div>
-      <div class="radio-list" id="status-radios" role="radiogroup" aria-label="Status">
-        <label class="radio-row"><input type="radio" name="status" value="all"> All Statuses</label>
-        <label class="radio-row"><input type="radio" name="status" value="available"> Available</label>
-        <label class="radio-row"><input type="radio" name="status" value="scheduled_tour"> Scheduled Tour</label>
-        <label class="radio-row"><input type="radio" name="status" value="applied"> Applied</label>
-        <label class="radio-row"><input type="radio" name="status" value="review_together"> Review Together</label>
-        <label class="radio-row"><input type="radio" name="status" value="off_market"> Off Market</label>
-        <label class="radio-row"><input type="radio" name="status" value="not_interesting"> Not Interested</label>
+      <div class="radio-list" id="status-options" aria-label="Status">
+        <label class="radio-row"><input type="checkbox" name="status" value="available"> Available</label>
+        <label class="radio-row"><input type="checkbox" name="status" value="scheduled_tour"> Scheduled Tour</label>
+        <label class="radio-row"><input type="checkbox" name="status" value="applied"> Applied</label>
+        <label class="radio-row"><input type="checkbox" name="status" value="review_together"> Review Together</label>
+        <label class="radio-row"><input type="checkbox" name="status" value="off_market"> Off Market</label>
+        <label class="radio-row"><input type="checkbox" name="status" value="not_interesting"> Not Interested</label>
       </div>
     </div>
 
@@ -910,7 +909,8 @@ const state = {
   // destination -> { mode: "Drive"|"Transit"|"Walk", maxMinutes: number|null }
   commute: {},
   sort: "date-desc",
-  statusFilter: "all",
+  // Set of selected status keys; empty set = show all.
+  statusFilters: new Set(),
   modalId: null,
   // Photo index for the open modal (separate from per-tile carousel state).
   modalPhotoIndex: 0,
@@ -1218,14 +1218,9 @@ function applyFilters() {
       const myScore = state.scores.get(r._id)?.get(state.scorer)?.score ?? 0;
       if (myScore < state.minStars) return false;
     }
-    const f = state.flags.get(r._id) || {};
-    const rowStatus = activeStatus(f);
-    if (state.statusFilter && state.statusFilter !== "all") {
-      if (state.statusFilter === "available") {
-        if (rowStatus) return false;
-      } else if (rowStatus !== state.statusFilter) {
-        return false;
-      }
+    if (state.statusFilters.size > 0) {
+      const rowStatus = activeStatus(state.flags.get(r._id)) || "available";
+      if (!state.statusFilters.has(rowStatus)) return false;
     }
     for (const dest of META.destinations) {
       const cfg = state.commute[dest];
@@ -1842,16 +1837,18 @@ function populateCommuteRows() {
   });
 }
 
-const FILTER_DEFAULTS = {
-  search: "",
-  priceMin: 6500,
-  priceMax: null,
-  minBeds: null,
-  minBaths: null,
-  minStars: null,
-  region: "",
-  statusFilter: "all",
-};
+function defaultFilters() {
+  return {
+    search: "",
+    priceMin: 6500,
+    priceMax: null,
+    minBeds: null,
+    minBaths: null,
+    minStars: null,
+    region: "",
+    statusFilters: new Set(),
+  };
+}
 
 function syncRatingChips() {
   const cur = state.minStars == null ? "" : String(state.minStars);
@@ -1864,22 +1861,16 @@ function syncRegionRadios() {
     r.checked = (r.value === (state.region || ""));
   });
 }
-function syncStatusRadios() {
-  document.querySelectorAll('#status-radios input[name="status"]').forEach((r) => {
-    r.checked = (r.value === (state.statusFilter || "all"));
+function syncStatusChecks() {
+  document.querySelectorAll('#status-options input[name="status"]').forEach((cb) => {
+    cb.checked = state.statusFilters.has(cb.value);
   });
 }
 function syncReviewToggle() {
   const btn = document.getElementById("btn-review");
-  const on = state.statusFilter === "review_together";
+  const on = state.statusFilters.has("review_together");
   btn.classList.toggle("is-active", on);
   btn.setAttribute("aria-pressed", on ? "true" : "false");
-}
-function setStatusFilter(value) {
-  state.statusFilter = value || "all";
-  syncStatusRadios();
-  syncReviewToggle();
-  render();
 }
 function syncFilterInputs() {
   document.getElementById("f-price-min").value = state.priceMin ?? "";
@@ -1889,7 +1880,7 @@ function syncFilterInputs() {
   document.getElementById("scorer-name").value = state.scorer || "";
   syncRatingChips();
   syncRegionRadios();
-  syncStatusRadios();
+  syncStatusChecks();
   syncReviewToggle();
 }
 
@@ -1921,15 +1912,22 @@ function wireControls() {
     render();
   });
 
-  // Status radios.
-  document.getElementById("status-radios").addEventListener("change", (e) => {
+  // Status checkboxes (multi-select).
+  document.getElementById("status-options").addEventListener("change", (e) => {
     if (e.target.name !== "status") return;
-    setStatusFilter(e.target.value);
+    if (e.target.checked) state.statusFilters.add(e.target.value);
+    else state.statusFilters.delete(e.target.value);
+    syncReviewToggle();
+    render();
   });
 
-  // "Review Together" toolbar shortcut.
+  // "Review Together" toolbar shortcut — toggles that single status into the multi-select.
   document.getElementById("btn-review").addEventListener("click", () => {
-    setStatusFilter(state.statusFilter === "review_together" ? "all" : "review_together");
+    if (state.statusFilters.has("review_together")) state.statusFilters.delete("review_together");
+    else state.statusFilters.add("review_together");
+    syncStatusChecks();
+    syncReviewToggle();
+    render();
   });
 
   // Rating chips.
@@ -1951,7 +1949,7 @@ function wireControls() {
 
   // Reset / Apply.
   document.getElementById("filter-reset").addEventListener("click", () => {
-    Object.assign(state, FILTER_DEFAULTS);
+    Object.assign(state, defaultFilters());
     document.getElementById("f-search").value = "";
     syncFilterInputs();
     render();
