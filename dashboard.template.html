@@ -143,47 +143,141 @@
   }
   .chip.active { background: var(--accent); color: #ffffff; border-color: var(--accent); font-weight: 600; }
 
-  main { padding: 18px 20px 40px; }
+  main { padding: 22px 28px 60px; }
 
   .grid {
-    display: flex; flex-direction: column; gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 22px;
   }
 
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    display: flex; flex-direction: row; gap: 16px; align-items: stretch;
-    transition: border-color 120ms ease, box-shadow 120ms ease;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
     box-shadow: 0 1px 2px rgba(11, 37, 69, 0.04);
+    cursor: pointer;
   }
-  .card:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(30, 77, 153, 0.1); }
-  .card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-  .card .score-panel {
-    width: 360px; flex-shrink: 0;
-    border-left: 1px solid var(--border);
-    padding-left: 14px;
-    display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  .card:hover { border-color: var(--accent); box-shadow: 0 6px 16px rgba(30, 77, 153, 0.10); }
+
+  .card-photo {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background: linear-gradient(135deg, #cfe0f5 0%, #e3ecf8 50%, #f0e8da 100%);
+    overflow: hidden;
   }
-  @media (max-width: 820px) {
-    .card { flex-direction: column; }
-    .card .score-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 10px; }
+  .card-photo img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .card-photo .placeholder-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(11, 37, 69, 0.18);
+  }
+  .card-photo .placeholder-icon svg { width: 56px; height: 56px; }
+
+  .status-pill {
+    position: absolute; top: 12px; left: 12px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px; font-weight: 600;
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(11,37,69,0.08);
+    backdrop-filter: blur(4px);
+  }
+  .status-pill.s-available { color: #1f7a4d; }
+  .status-pill.s-applied { color: #1e4d99; }
+  .status-pill.s-scheduled_tour { color: #6a3fb5; }
+  .status-pill.s-not_interesting { color: #5c7a99; }
+  .status-pill.s-off_market { color: var(--danger); }
+  .status-pill.s-review_together { color: #2e8b57; }
+
+  .heart-btn {
+    position: absolute; top: 10px; right: 10px;
+    width: 34px; height: 34px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.92);
+    border: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(11,37,69,0.10);
+    transition: transform 80ms ease;
+  }
+  .heart-btn:hover { transform: scale(1.06); }
+  .heart-btn svg { width: 18px; height: 18px; stroke: #5c7a99; fill: none; stroke-width: 2; }
+  .heart-btn.is-on svg { stroke: var(--danger); fill: var(--danger); }
+
+  .card-body {
+    padding: 14px 16px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .addr-line {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: 13px;
+  }
+  .addr-line svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .addr-line .addr-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .price-line {
+    font-size: 22px; font-weight: 700; color: var(--text);
+    line-height: 1.1;
+  }
+  .price-line .per { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  .stars-line { display: inline-flex; gap: 2px; }
+  .stars-line .star {
+    font-size: 18px; line-height: 1; color: #d3dde8;
+  }
+  .stars-line .star.filled { color: var(--star); }
+
+  .specs-line {
+    display: flex; gap: 14px; align-items: center;
+    color: var(--muted); font-size: 13px;
+    padding-top: 10px; border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .specs-line .spec { display: inline-flex; align-items: center; gap: 4px; }
+  .specs-line svg { width: 14px; height: 14px; }
+
+  .notes-preview {
+    font-size: 13px; color: var(--muted); font-style: italic;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-top: 2px;
   }
 
-  .card-head { display: flex; align-items: center; gap: 10px; }
-  .card-head .addr { flex: 1; min-width: 0; }
-  .card-thumb-link { flex-shrink: 0; line-height: 0; }
-  .card-thumb {
-    width: 72px; height: 72px; object-fit: cover;
-    border-radius: 6px; border: 1px solid var(--border);
-    background: var(--panel-2);
-    display: block;
+  .status-select {
+    width: 100%;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 32px 8px 12px;
+    font-size: 13px;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b2545' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    cursor: pointer;
+    margin-top: 4px;
   }
-  .addr { font-weight: 600; font-size: 14px; line-height: 1.35; }
-  .addr .zip { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
-  .price { font-size: 20px; font-weight: 700; color: var(--accent-2); white-space: nowrap; }
-  .price small { font-size: 12px; color: var(--muted); font-weight: 400; display: block; text-align: right; }
+  .status-select:focus { outline: none; border-color: var(--accent); }
+
+  .notes-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 80ms;
+  }
+  .notes-btn:hover { background: #163d7a; }
 
   .facts { display: flex; gap: 6px; flex-wrap: wrap; }
   .fact {
@@ -191,40 +285,6 @@
     border-radius: 6px; padding: 3px 8px; font-size: 12px; color: var(--muted);
   }
   .fact b { color: var(--text); font-weight: 600; }
-
-  .info-middle {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 14px;
-    align-items: start;
-  }
-  .info-middle .left { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  @media (max-width: 560px) {
-    .info-middle { grid-template-columns: 1fr; }
-  }
-
-  .commute-summary { display: flex; flex-direction: column; gap: 2px; }
-  .commute-line {
-    display: grid;
-    grid-template-columns: 70px auto auto auto;
-    gap: 2px 8px;
-    font-size: 12px;
-    align-items: baseline;
-  }
-  .commute-line .dest { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .commute-line .m { font-variant-numeric: tabular-nums; color: var(--text); min-width: 40px; text-align: right; }
-  .commute-line .m .unit { color: var(--muted); font-size: 11px; }
-  .commute-line .m.na { color: #aab8cc; }
-
-  .scores { display: flex; gap: 6px; flex-wrap: wrap; }
-  .score {
-    background: var(--panel-2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--muted);
-  }
-  .score b { color: var(--text); }
-  .score.good b { color: var(--accent-2); }
-  .score.mid b { color: var(--warn); }
-  .score.bad b { color: var(--danger); }
 
   .actions { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-top: 2px; }
   .actions .spacer { flex: 1; }
@@ -234,7 +294,13 @@
   }
   .link-btn:hover { color: var(--accent); border-color: var(--accent); }
 
-  .details { display: none; border-top: 1px solid var(--border); padding-top: 10px; gap: 10px; flex-direction: column; }
+  .details {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 14px 16px 16px;
+    gap: 12px; flex-direction: column;
+    background: #fbfcfe;
+  }
   .card.open .details { display: flex; }
   .card.open .toggle::after { content: "\u25B2"; }
   .toggle::after { content: "\u25BC"; margin-left: 6px; font-size: 10px; }
@@ -347,24 +413,8 @@
   }
   .scorer-note.read-only.empty { color: #aab8cc; }
 
-  .flag-row {
-    display: flex; gap: 6px;
-    padding-top: 8px; margin-top: 6px;
-    border-top: 1px solid var(--border);
-  }
-  .flag-btn {
-    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
-    color: var(--muted); border-radius: 6px; padding: 5px 6px;
-    font-size: 11px; cursor: pointer; text-align: center; font-weight: 500;
-    transition: background 80ms, color 80ms, border-color 80ms;
-  }
-  .flag-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .flag-btn.is-off-market { background: #fff0f0; border-color: var(--danger); color: var(--danger); font-weight: 700; }
-  .flag-btn.is-not-interesting { background: #f3f0ff; border-color: #7c5af6; color: #7c5af6; font-weight: 700; }
-  .flag-btn.is-review-together { background: #e6f7e1; border-color: #2e8b57; color: #2e8b57; font-weight: 700; }
-  .card.is-off-market { opacity: 0.55; }
-  .card.is-not-interesting { opacity: 0.65; }
-  .card.is-review-together { background: #f1faec; }
+  .card.is-dim { opacity: 0.6; }
+  .card.is-dim:hover { opacity: 1; }
 
   .control.commute-filters {
     grid-column: span 2;
@@ -515,13 +565,6 @@ function num(row, key) {
   return (v === undefined || v === null) ? null : v;
 }
 
-function scoreClass(v) {
-  if (v == null) return "";
-  if (v >= 80) return "good";
-  if (v >= 60) return "mid";
-  return "bad";
-}
-
 const SCORERS = ["Morten", "Victoria"];
 
 const _storedScorer = (localStorage.getItem("sf-scorer") || "").trim();
@@ -543,8 +586,10 @@ const state = {
   scores: new Map(),
   // listing_url -> { description, scraped_at }
   extras: new Map(),
-  // listing_id -> { off_market, not_interesting }
+  // listing_id -> { off_market, not_interesting, review_together, scheduled_tour, applied }
   flags: new Map(),
+  // listing_id -> bool (local-only for now)
+  hearts: new Set(),
 };
 
 async function loadScores() {
@@ -577,13 +622,26 @@ async function loadFlags() {
   for (const row of data || []) state.flags.set(row.listing_id, row);
 }
 
-async function saveFlag(listingId, field, value) {
-  const existing = state.flags.get(listingId) || { off_market: false, not_interesting: false, review_together: false };
-  const updated = { ...existing, listing_id: listingId, [field]: value, updated_at: new Date().toISOString() };
-  state.flags.set(listingId, updated);
+const STATUS_KEYS = ["off_market", "not_interesting", "review_together", "scheduled_tour", "applied"];
+// Columns currently persisted in Supabase. Chunk 7 will add the rest.
+const PERSISTED_FLAG_KEYS = ["off_market", "not_interesting", "review_together"];
+
+async function setStatus(listingId, status) {
+  const existing = state.flags.get(listingId) || {};
+  const next = { listing_id: listingId, updated_at: new Date().toISOString() };
+  for (const k of STATUS_KEYS) next[k] = (status === k);
+  state.flags.set(listingId, { ...existing, ...next });
   render();
-  const { error } = await db.from("listing_flags").upsert(updated, { onConflict: "listing_id" });
-  if (error) console.error("saveFlag failed:", error);
+  const payload = { listing_id: next.listing_id, updated_at: next.updated_at };
+  for (const k of PERSISTED_FLAG_KEYS) payload[k] = next[k];
+  const { error } = await db.from("listing_flags").upsert(payload, { onConflict: "listing_id" });
+  if (error) console.error("setStatus failed:", error);
+}
+
+function activeStatus(flags) {
+  if (!flags) return null;
+  for (const k of STATUS_KEYS) if (flags[k]) return k;
+  return null;
 }
 
 function findAll(obj, key) {
@@ -876,26 +934,6 @@ function renderStats(visible) {
   `;
 }
 
-function commuteSummary(r) {
-  const minText = (v) => {
-    const s = fmtMin(v);
-    return s == null ? "—" : `${s}<span class="unit"> m</span>`;
-  };
-  const cellClass = (v) => v == null ? "m na" : "m";
-  return META.destinations.map((d) => {
-    const drive = num(r, `${d} - Drive Time (min)`);
-    const walk = num(r, `${d} - Walk Time (min)`);
-    const tr = num(r, `${d} - Transit Time (min)`);
-    const shortLabel = d.replace(/ \([^)]+\)$/, "");
-    return `<div class="commute-line" title="${escapeHtml(d)}">
-      <span class="dest">${escapeHtml(shortLabel)}</span>
-      <span class="${cellClass(drive)}" title="Drive">🚗 ${minText(drive)}</span>
-      <span class="${cellClass(tr)}" title="Transit">🚆 ${minText(tr)}</span>
-      <span class="${cellClass(walk)}" title="Walk">🚶 ${minText(walk)}</span>
-    </div>`;
-  }).join("");
-}
-
 function commuteFullGrid(r) {
   const header = `
     <div class="h"></div>
@@ -919,18 +957,6 @@ function commuteFullGrid(r) {
     `;
   }).join("");
   return `<div class="commute-grid">${header}${body}</div>`;
-}
-
-function scoreChips(r) {
-  const items = [
-    ["Walk", num(r, "Walk Score (Premium Data)")],
-    ["Transit", num(r, "Transit Score (Premium Data)")],
-    ["Bike", num(r, "Bike Score (Premium Data)")],
-  ];
-  return items.map(([label, v]) => {
-    if (v == null) return "";
-    return `<span class="score ${scoreClass(v)}">${label} <b>${Math.round(v)}</b></span>`;
-  }).join("");
 }
 
 function description(r) {
@@ -1079,84 +1105,145 @@ function scoreWidget(r) {
   return `<div class="score-box">${rows}</div>`;
 }
 
-function flagButtons(r) {
-  const f = state.flags.get(r._id) || {};
-  const id = escapeHtml(r._id);
-  return `<div class="flag-row">
-    <button class="flag-btn${f.off_market ? " is-off-market" : ""}" data-flag-id="${id}" data-flag="off_market">
-      ${f.off_market ? "✓ Off market" : "Off market"}
-    </button>
-    <button class="flag-btn${f.not_interesting ? " is-not-interesting" : ""}" data-flag-id="${id}" data-flag="not_interesting">
-      ${f.not_interesting ? "✓ Not interesting" : "Not interesting"}
-    </button>
-    <button class="flag-btn${f.review_together ? " is-review-together" : ""}" data-flag-id="${id}" data-flag="review_together">
-      ${f.review_together ? "✓ Review together" : "Review together"}
-    </button>
-  </div>`;
+const STATUS_LABELS = {
+  available: "Available",
+  scheduled_tour: "Scheduled Tour",
+  applied: "Applied",
+  review_together: "Review Together",
+  off_market: "Off Market",
+  not_interesting: "Not Interested",
+};
+
+function statusPill(status) {
+  const key = status || "available";
+  const label = STATUS_LABELS[key];
+  return `<span class="status-pill s-${key}">${label}</span>`;
 }
 
-function renderCard(r) {
+function statusSelect(id, status) {
+  const value = status || "available";
+  const opts = ["available", "scheduled_tour", "applied", "review_together", "off_market", "not_interesting"]
+    .map((k) => `<option value="${k}"${k === value ? " selected" : ""}>${STATUS_LABELS[k]}</option>`)
+    .join("");
+  return `<select class="status-select" data-status-id="${escapeHtml(id)}">${opts}</select>`;
+}
+
+function starsRow(r) {
+  const score = state.scorer
+    ? (state.scores.get(r._id)?.get(state.scorer)?.score ?? 0)
+    : 0;
+  return `<div class="stars-line">${[1,2,3,4,5].map((n) =>
+    `<span class="star${n <= score ? " filled" : ""}">★</span>`
+  ).join("")}</div>`;
+}
+
+function notePreview(r) {
+  const bucket = state.scores.get(r._id);
+  if (!bucket) return "";
+  let note = state.scorer ? (bucket.get(state.scorer)?.notes || "") : "";
+  if (!note) {
+    for (const entry of bucket.values()) {
+      if (entry?.notes) { note = entry.notes; break; }
+    }
+  }
+  return note ? `<div class="notes-preview">${escapeHtml(note)}</div>` : "";
+}
+
+function specsLine(r) {
   const beds = num(r, "Beds");
   const baths = num(r, "Baths");
   const sqft = num(r, "Footage");
-  const ppsf = r["Price Per Sq. Ft."] || "";
+  const parts = [];
+  if (beds != null) {
+    parts.push(`<span class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17h20"/><path d="M4 17V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9"/><path d="M2 21v-4"/><path d="M22 21v-4"/></svg>${beds} bd</span>`);
+  }
+  if (baths != null) {
+    parts.push(`<span class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M4 12V6a2 2 0 0 1 4 0v1"/><path d="M2 12v4a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4v-4"/></svg>${baths} ba</span>`);
+  }
+  if (sqft != null) {
+    parts.push(`<span class="spec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>${sqft.toLocaleString()} sqft</span>`);
+  }
+  return `<div class="specs-line">${parts.join("")}</div>`;
+}
+
+function photoFromRow(r) {
+  // Tolerant of multiple future column shapes; activates once the second scrape adds photos.
+  const candidates = [
+    r["Photos"], r["Photo URLs"], r["Image URL"], r["Image URLs"],
+    r["Photo"], r["Image"], r["Hero Photo"], r["Main Photo"],
+  ];
+  for (const v of candidates) {
+    if (!v) continue;
+    if (Array.isArray(v) && v.length) return String(v[0]);
+    const s = String(v).trim();
+    if (!s) continue;
+    if (s.startsWith("[")) {
+      try { const arr = JSON.parse(s); if (Array.isArray(arr) && arr.length) return String(arr[0]); }
+      catch (_e) {}
+    }
+    // Comma-separated list?
+    const first = s.split(",")[0].trim();
+    if (first.startsWith("http")) return first;
+    if (s.startsWith("http")) return s;
+  }
+  // Fallback to scraped extras
+  const extras = getExtras(r);
+  return extras?.photos?.[0]?.medium || null;
+}
+
+function renderCard(r) {
   const url = r["Listing URL"] || "";
   const short = r["Short Address"] || r["Address"] || "(no address)";
-  const zip = r["Zip"] || "";
+  const region = r["_region"] && r["_region"] !== "Other" ? r["_region"] : "";
   const city = r["City"] || "";
-  const cityLine = [city, zip].filter(Boolean).join(" · ");
+  const locale = region || city;
   const isOpen = state.openIds.has(r._id);
-  const dateInfo = listingDateInfo(r);
-  const dateFact = dateInfo ? `<span class="fact" title="${escapeHtml(dateInfo.label + " " + dateInfo.date)}">${escapeHtml(dateInfo.label)} ${escapeHtml(fmtDate(dateInfo.date))}</span>` : "";
-  const facts = [
-    beds != null ? `<span class="fact"><b>${beds}</b> bd</span>` : "",
-    baths != null ? `<span class="fact"><b>${baths}</b> ba</span>` : "",
-    sqft != null ? `<span class="fact"><b>${sqft.toLocaleString()}</b> sqft</span>` : "",
-    ppsf ? `<span class="fact">${escapeHtml(ppsf)}/sqft</span>` : "",
-    r["Type"] ? `<span class="fact">${escapeHtml(r["Type"])}</span>` : "",
-    dateFact,
-  ].filter(Boolean).join("");
-
   const fl = state.flags.get(r._id) || {};
-  const flagClass = fl.off_market ? " is-off-market" : fl.not_interesting ? " is-not-interesting" : fl.review_together ? " is-review-together" : "";
+  const status = activeStatus(fl);
+  const dimClass = (status === "off_market" || status === "not_interesting") ? " is-dim" : "";
+  const isFavorite = state.hearts.has(r._id);
 
-  const extras = getExtras(r);
-  const heroPhoto = extras?.photos?.[0];
-  const thumb = heroPhoto
-    ? `<a href="${escapeHtml(heroPhoto.large)}" target="_blank" rel="noopener" class="card-thumb-link" title="Open photo"><img class="card-thumb" src="${escapeHtml(heroPhoto.small)}" alt="listing photo" loading="lazy"></a>`
-    : "";
+  const photoUrl = photoFromRow(r);
+  const photoHtml = photoUrl
+    ? `<img src="${escapeHtml(photoUrl)}" alt="listing photo" loading="lazy">`
+    : `<div class="placeholder-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v11a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></div>`;
+
+  const priceStr = fmtPrice(r._priceValue);
+  const isRental = r["Type"] === "APARTMENT" || r._priceValue != null && r._priceValue < 50000;
 
   return `
-  <article class="card ${isOpen ? "open" : ""}${flagClass}" data-id="${escapeHtml(r._id)}">
-    <div class="info">
-      <div class="card-head">
-        ${thumb}
-        <div class="addr">${escapeHtml(short)}<span class="zip">${escapeHtml(cityLine)}</span></div>
-        <div class="price">${fmtPrice(r._priceValue)}<small>${r._priceValue != null && r["Type"] === "APARTMENT" ? "per month" : ""}</small></div>
+  <article class="card ${isOpen ? "open" : ""}${dimClass}" data-id="${escapeHtml(r._id)}">
+    <div class="card-photo" data-toggle="${escapeHtml(r._id)}">
+      ${photoHtml}
+      ${statusPill(status)}
+      <button type="button" class="heart-btn${isFavorite ? " is-on" : ""}" data-heart-id="${escapeHtml(r._id)}" aria-label="Favorite" aria-pressed="${isFavorite}">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+    </div>
+    <div class="card-body" data-toggle="${escapeHtml(r._id)}">
+      <div class="addr-line">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span class="addr-text">${escapeHtml(short)}${locale ? ` • ${escapeHtml(locale)}` : ""}</span>
       </div>
-      <div class="info-middle">
-        <div class="left">
-          <div class="facts">${facts}</div>
-          <div class="scores">${scoreChips(r)}</div>
-        </div>
-        <div class="commute-summary">${commuteSummary(r)}</div>
+      <div class="price-line">${priceStr}${isRental && r._priceValue != null ? `<span class="per">/mo</span>` : ""}</div>
+      ${starsRow(r)}
+      ${specsLine(r)}
+      ${notePreview(r)}
+      ${statusSelect(r._id, status)}
+      <button type="button" class="notes-btn" data-toggle="${escapeHtml(r._id)}">${isOpen ? "Edit Notes" : (notePreview(r) ? "Edit Notes" : "Add Notes")}</button>
+    </div>
+    <div class="details">
+      <div class="score-panel">
+        ${scoreWidget(r)}
       </div>
+      ${commuteFullGrid(r)}
       <div class="actions">
         ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
         ${mapLink(r)}
-        <div class="spacer"></div>
-        <button class="link-btn toggle" data-toggle="${escapeHtml(r._id)}">Details</button>
       </div>
-      <div class="details">
-        ${commuteFullGrid(r)}
-        ${kvRows(r)}
-        ${extrasBlock(r)}
-        ${description(r)}
-      </div>
-    </div>
-    <div class="score-panel">
-      ${scoreWidget(r)}
-      ${flagButtons(r)}
+      ${kvRows(r)}
+      ${extrasBlock(r)}
+      ${description(r)}
     </div>
   </article>`;
 }
@@ -1172,27 +1259,40 @@ function render() {
     return;
   }
   grid.innerHTML = visible.map(renderCard).join("");
-  grid.querySelectorAll("[data-toggle]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-toggle");
+  grid.querySelectorAll("[data-toggle]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      // Ignore clicks that originated on interactive child elements.
+      if (e.target.closest("a, select, input, .heart-btn, .star[data-score]")) return;
+      const id = el.getAttribute("data-toggle");
       if (state.openIds.has(id)) state.openIds.delete(id); else state.openIds.add(id);
       render();
     });
   });
+  grid.querySelectorAll(".heart-btn[data-heart-id]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-heart-id");
+      if (state.hearts.has(id)) state.hearts.delete(id); else state.hearts.add(id);
+      btn.classList.toggle("is-on");
+      btn.setAttribute("aria-pressed", state.hearts.has(id) ? "true" : "false");
+    });
+  });
+  grid.querySelectorAll(".status-select[data-status-id]").forEach((sel) => {
+    sel.addEventListener("click", (e) => e.stopPropagation());
+    sel.addEventListener("change", (e) => {
+      e.stopPropagation();
+      const id = sel.getAttribute("data-status-id");
+      const value = sel.value === "available" ? null : sel.value;
+      setStatus(id, value);
+    });
+  });
   grid.querySelectorAll(".star[data-score]").forEach((star) => {
-    star.addEventListener("click", () => {
+    star.addEventListener("click", (e) => {
+      e.stopPropagation();
       const id = star.getAttribute("data-id");
       const n = Number(star.getAttribute("data-score"));
       const current = state.scores.get(id)?.get(state.scorer)?.score;
       saveScore(id, current === n ? null : n);
-    });
-  });
-  grid.querySelectorAll(".flag-btn[data-flag-id]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-flag-id");
-      const field = btn.getAttribute("data-flag");
-      const current = !!(state.flags.get(id) || {})[field];
-      saveFlag(id, field, !current);
     });
   });
   grid.querySelectorAll(".scorer-note[data-note-id]").forEach((input) => {
