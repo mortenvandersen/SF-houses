@@ -56,6 +56,12 @@
     flex: 1; min-width: 220px;
     position: relative;
   }
+  @media (max-width: 640px) {
+    header.topbar { padding: 14px 16px 12px; }
+    .title-row h1 { font-size: 22px; }
+    main { padding: 16px 16px 60px; }
+    .search-wrap { flex-basis: 100%; }
+  }
   .search-wrap input {
     width: 100%;
     background: var(--panel); color: var(--text);
@@ -519,7 +525,6 @@
   }
   .kv-grid .k { color: var(--muted); }
 
-  .count-line { color: var(--muted); font-size: 12px; margin: 10px 0 14px; }
   .empty-state {
     text-align: center; color: var(--muted); padding: 60px 20px;
     border: 1px dashed var(--border); border-radius: 10px;
@@ -758,18 +763,26 @@ async function loadExtras() {
   for (const row of data || []) state.extras.set(row.listing_url, row);
 }
 
-async function loadFlags() {
-  const { data, error } = await db
-    .from("listing_flags")
-    .select("listing_id, off_market, not_interesting, review_together");
-  if (error) { console.error("loadFlags failed:", error); return; }
-  state.flags = new Map();
-  for (const row of data || []) state.flags.set(row.listing_id, row);
-}
-
 const STATUS_KEYS = ["off_market", "not_interesting", "review_together", "scheduled_tour", "applied"];
-// Columns currently persisted in Supabase. Chunk 7 will add the rest.
-const PERSISTED_FLAG_KEYS = ["off_market", "not_interesting", "review_together"];
+const LEGACY_FLAG_COLUMNS = ["off_market", "not_interesting", "review_together"];
+// Detected at load time. Falls back to legacy if scheduled_tour/applied columns
+// haven't been added to Supabase yet — see chunk7-supabase.sql.
+let PERSISTED_FLAG_KEYS = LEGACY_FLAG_COLUMNS.slice();
+
+async function loadFlags() {
+  const fullCols = "listing_id, " + STATUS_KEYS.join(", ");
+  let res = await db.from("listing_flags").select(fullCols);
+  if (res.error) {
+    res = await db.from("listing_flags").select("listing_id, " + LEGACY_FLAG_COLUMNS.join(", "));
+    if (res.error) { console.error("loadFlags failed:", res.error); return; }
+    PERSISTED_FLAG_KEYS = LEGACY_FLAG_COLUMNS.slice();
+    console.info("listing_flags: scheduled_tour/applied not in DB yet — run chunk7-supabase.sql to enable persistence.");
+  } else {
+    PERSISTED_FLAG_KEYS = STATUS_KEYS.slice();
+  }
+  state.flags = new Map();
+  for (const row of res.data || []) state.flags.set(row.listing_id, row);
+}
 
 async function setStatus(listingId, status) {
   const existing = state.flags.get(listingId) || {};
@@ -1378,7 +1391,7 @@ function renderCard(r) {
       ${specsLine(r)}
       ${notePreview(r)}
       ${statusSelect(r._id, status)}
-      <button type="button" class="notes-btn" data-toggle="${escapeHtml(r._id)}">${isOpen ? "Edit Notes" : (notePreview(r) ? "Edit Notes" : "Add Notes")}</button>
+      <button type="button" class="notes-btn" data-notes-id="${escapeHtml(r._id)}">${isOpen ? "Edit Notes" : (notePreview(r) ? "Edit Notes" : "Add Notes")}</button>
     </div>
     <div class="details">
       <div class="score-panel">
@@ -1410,10 +1423,23 @@ function render() {
   grid.querySelectorAll("[data-toggle]").forEach((el) => {
     el.addEventListener("click", (e) => {
       // Ignore clicks that originated on interactive child elements.
-      if (e.target.closest("a, select, input, .heart-btn, .star[data-score]")) return;
+      if (e.target.closest("a, button, select, input, .heart-btn, .star[data-score]")) return;
       const id = el.getAttribute("data-toggle");
       if (state.openIds.has(id)) state.openIds.delete(id); else state.openIds.add(id);
       render();
+    });
+  });
+  grid.querySelectorAll(".notes-btn[data-notes-id]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-notes-id");
+      const wasOpen = state.openIds.has(id);
+      if (!wasOpen) state.openIds.add(id);
+      render();
+      if (!wasOpen) {
+        const card = grid.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+        card?.querySelector(".scorer-note[data-note-id]")?.focus();
+      }
     });
   });
   grid.querySelectorAll(".heart-btn[data-heart-id]").forEach((btn) => {
