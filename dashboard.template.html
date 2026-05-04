@@ -488,16 +488,116 @@
   }
   .link-btn:hover { color: var(--accent); border-color: var(--accent); }
 
-  .details {
-    display: none;
-    border-top: 1px solid var(--border);
-    padding: 14px 16px 16px;
-    gap: 12px; flex-direction: column;
-    background: #fbfcfe;
+  body.modal-open { overflow: hidden; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(11, 37, 69, 0.42);
+    z-index: 60;
+    opacity: 0; pointer-events: none;
+    transition: opacity 160ms ease;
   }
-  .card.open .details { display: flex; }
-  .card.open .toggle::after { content: "\u25B2"; }
-  .toggle::after { content: "\u25BC"; margin-left: 6px; font-size: 10px; }
+  .modal-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+  .listing-modal {
+    position: fixed; inset: 0;
+    z-index: 70;
+    display: none;
+    align-items: flex-start; justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .listing-modal.is-open { display: flex; }
+
+  .modal-card {
+    background: var(--panel);
+    border-radius: 14px;
+    width: 100%; max-width: 720px;
+    box-shadow: 0 24px 60px rgba(11, 37, 69, 0.30);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    margin-bottom: 40px;
+  }
+  .modal-header {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--panel);
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .modal-header .modal-titles { flex: 1; min-width: 0; }
+  .modal-header .modal-title {
+    margin: 0; font-size: 17px; font-weight: 700;
+    color: var(--accent-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .modal-header .modal-sub {
+    font-size: 13px; color: var(--muted); margin-top: 2px;
+  }
+  .modal-header .modal-price {
+    font-size: 20px; font-weight: 700; color: var(--text);
+    white-space: nowrap;
+  }
+  .modal-header .modal-price .per { font-size: 13px; font-weight: 500; }
+  .modal-header .modal-close {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--muted); padding: 4px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .modal-header .modal-close:hover { color: var(--text); background: var(--panel-2); }
+  .modal-header .modal-close svg { width: 20px; height: 20px; }
+
+  .modal-body {
+    padding: 18px 22px 22px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+
+  .modal-hero {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #cfe0f5 0%, #e3ecf8 50%, #f0e8da 100%);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .modal-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .modal-hero .placeholder-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(11, 37, 69, 0.18);
+  }
+  .modal-hero .placeholder-icon svg { width: 80px; height: 80px; }
+  .modal-hero .photo-nav { opacity: 1; }
+  .modal-hero .photo-counter {
+    bottom: 12px; right: 12px;
+  }
+
+  .modal-section-h {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+
+  .modal-stats {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    color: var(--muted); font-size: 14px;
+  }
+  .modal-stats .spec { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .link-btn { padding: 6px 12px; font-size: 13px; }
+
+  .modal-body .commute-grid {
+    font-size: 13px; gap: 6px 16px;
+  }
+  .modal-body .commute-grid .h { font-size: 11px; }
+  .modal-body .kv-grid { font-size: 13px; gap: 6px 16px; }
+  .modal-body .desc { max-height: none; }
+
+  @media (max-width: 600px) {
+    .listing-modal { padding: 0; }
+    .modal-card { border-radius: 0; max-width: 100%; min-height: 100vh; margin-bottom: 0; }
+  }
 
   .commute-grid {
     display: grid;
@@ -733,6 +833,24 @@
     <button type="button" class="btn-apply" id="filter-apply">Apply</button>
   </footer>
 </aside>
+
+<div class="modal-backdrop" id="modal-backdrop"></div>
+<div class="listing-modal" id="listing-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modal-title">
+  <div class="modal-card" id="modal-card">
+    <div class="modal-header">
+      <div class="modal-titles">
+        <h2 class="modal-title" id="modal-title"></h2>
+        <div class="modal-sub" id="modal-sub"></div>
+      </div>
+      <div class="modal-price" id="modal-price"></div>
+      <button type="button" class="modal-close" id="modal-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
 <main>
   <div class="grid" id="grid"></div>
 </main>
@@ -771,7 +889,9 @@ const state = {
   commute: {},
   sort: "price-asc",
   statusFilter: "all",
-  openIds: new Set(),
+  modalId: null,
+  // Photo index for the open modal (separate from per-tile carousel state).
+  modalPhotoIndex: 0,
   scorer: SCORERS.includes(_storedScorer) ? _storedScorer : "",
   // listing_id -> { scorer -> { score, notes, updated_at } }
   scores: new Map(),
@@ -1402,12 +1522,10 @@ function photosFromRow(r) {
 }
 
 function renderCard(r) {
-  const url = r["Listing URL"] || "";
   const short = r["Short Address"] || r["Address"] || "(no address)";
   const region = r["_region"] && r["_region"] !== "Other" ? r["_region"] : "";
   const city = r["City"] || "";
   const locale = region || city;
-  const isOpen = state.openIds.has(r._id);
   const fl = state.flags.get(r._id) || {};
   const status = activeStatus(fl);
   const dimClass = (status === "off_market" || status === "not_interesting") ? " is-dim" : "";
@@ -1436,17 +1554,19 @@ function renderCard(r) {
 
   const priceStr = fmtPrice(r._priceValue);
   const isRental = r["Type"] === "APARTMENT" || r._priceValue != null && r._priceValue < 50000;
+  const noteHtml = notePreview(r);
+  const editLabel = noteHtml ? "Edit Notes" : "Add Notes";
 
   return `
-  <article class="card ${isOpen ? "open" : ""}${dimClass}" data-id="${escapeHtml(r._id)}">
-    <div class="card-photo" data-toggle="${escapeHtml(r._id)}">
+  <article class="card${dimClass}" data-id="${idAttr}">
+    <div class="card-photo" data-toggle="${idAttr}">
       ${photoHtml}
       ${statusPill(status)}
-      <button type="button" class="heart-btn${isFavorite ? " is-on" : ""}" data-heart-id="${escapeHtml(r._id)}" aria-label="Favorite" aria-pressed="${isFavorite}">
+      <button type="button" class="heart-btn${isFavorite ? " is-on" : ""}" data-heart-id="${idAttr}" aria-label="Favorite" aria-pressed="${isFavorite}">
         <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
       </button>
     </div>
-    <div class="card-body" data-toggle="${escapeHtml(r._id)}">
+    <div class="card-body" data-toggle="${idAttr}">
       <div class="addr-line">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         <span class="addr-text">${escapeHtml(short)}${locale ? ` • ${escapeHtml(locale)}` : ""}</span>
@@ -1454,24 +1574,149 @@ function renderCard(r) {
       <div class="price-line">${priceStr}${isRental && r._priceValue != null ? `<span class="per">/mo</span>` : ""}</div>
       ${starsRow(r)}
       ${specsLine(r)}
-      ${notePreview(r)}
+      ${noteHtml}
       ${statusSelect(r._id, status)}
-      <button type="button" class="notes-btn" data-notes-id="${escapeHtml(r._id)}">${isOpen ? "Edit Notes" : (notePreview(r) ? "Edit Notes" : "Add Notes")}</button>
-    </div>
-    <div class="details">
-      <div class="score-panel">
-        ${scoreWidget(r)}
-      </div>
-      ${commuteFullGrid(r)}
-      <div class="actions">
-        ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
-        ${mapLink(r)}
-      </div>
-      ${kvRows(r)}
-      ${extrasBlock(r)}
-      ${description(r)}
+      <button type="button" class="notes-btn" data-notes-id="${idAttr}">${editLabel}</button>
     </div>
   </article>`;
+}
+
+function openModal(id, opts) {
+  state.modalId = id;
+  state.modalPhotoIndex = 0;
+  document.body.classList.add("modal-open");
+  renderModal();
+  if (opts && opts.focusNote) {
+    document.getElementById("modal-body")
+      ?.querySelector(".scorer-note[data-note-id]")?.focus();
+  }
+}
+
+function closeModal() {
+  if (state.modalId == null) return;
+  state.modalId = null;
+  document.body.classList.remove("modal-open");
+  renderModal();
+}
+
+function renderModalHero(r) {
+  const photos = photosFromRow(r);
+  if (!photos.length) {
+    return `<div class="modal-hero"><div class="placeholder-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v11a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+    </div></div>`;
+  }
+  const idx = Math.min(state.modalPhotoIndex || 0, photos.length - 1);
+  const cur = photos[idx];
+  const showNav = photos.length > 1;
+  const nav = showNav ? `
+    <button type="button" class="photo-nav prev" data-modal-photo-dir="-1" aria-label="Previous photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button type="button" class="photo-nav next" data-modal-photo-dir="1" aria-label="Next photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="photo-counter" id="modal-photo-counter">${idx + 1} / ${photos.length}</div>
+  ` : "";
+  return `<div class="modal-hero">
+    <img id="modal-hero-img" src="${escapeHtml(cur)}" alt="listing photo">
+    ${nav}
+  </div>`;
+}
+
+function renderModal() {
+  const modal = document.getElementById("listing-modal");
+  const backdrop = document.getElementById("modal-backdrop");
+  if (state.modalId == null) {
+    modal.classList.remove("is-open");
+    backdrop.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+    return;
+  }
+  const r = RAW_DATA.find((x) => x._id === state.modalId);
+  if (!r) { state.modalId = null; renderModal(); return; }
+
+  const url = r["Listing URL"] || "";
+  const short = r["Short Address"] || r["Address"] || "(no address)";
+  const region = r["_region"] && r["_region"] !== "Other" ? r["_region"] : "";
+  const city = r["City"] || "";
+  const locale = region || city;
+  const isRental = r["Type"] === "APARTMENT" || (r._priceValue != null && r._priceValue < 50000);
+
+  document.getElementById("modal-title").textContent = short;
+  document.getElementById("modal-sub").textContent = locale ? `${locale}${r["Zip"] ? " · " + r["Zip"] : ""}` : (r["Zip"] || "");
+  const priceEl = document.getElementById("modal-price");
+  priceEl.innerHTML = fmtPrice(r._priceValue) + (isRental && r._priceValue != null ? `<span class="per">/mo</span>` : "");
+
+  const beds = num(r, "Beds");
+  const baths = num(r, "Baths");
+  const sqft = num(r, "Footage");
+  const stats = [];
+  if (beds != null) stats.push(`<span class="spec">${beds} bd</span>`);
+  if (baths != null) stats.push(`<span class="spec">${baths} ba</span>`);
+  if (sqft != null) stats.push(`<span class="spec">${sqft.toLocaleString()} sqft</span>`);
+  if (r["Type"]) stats.push(`<span class="spec">${escapeHtml(r["Type"])}</span>`);
+
+  const body = document.getElementById("modal-body");
+  body.innerHTML = `
+    ${renderModalHero(r)}
+    <div class="modal-stats">${stats.join("")}</div>
+    <div>
+      <div class="modal-section-h">Your scoring</div>
+      ${scoreWidget(r)}
+    </div>
+    <div>
+      <div class="modal-section-h">Commute</div>
+      ${commuteFullGrid(r)}
+    </div>
+    ${kvRows(r) ? `<div><div class="modal-section-h">Details</div>${kvRows(r)}</div>` : ""}
+    ${extrasBlock(r) || ""}
+    <div>
+      <div class="modal-section-h">Description</div>
+      ${description(r)}
+    </div>
+    <div class="modal-actions">
+      ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
+      ${mapLink(r)}
+    </div>
+  `;
+
+  modal.classList.add("is-open");
+  backdrop.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+
+  // Bind interactive elements inside the modal.
+  body.querySelectorAll(".star[data-score]").forEach((star) => {
+    star.addEventListener("click", () => {
+      const id = star.getAttribute("data-id");
+      const n = Number(star.getAttribute("data-score"));
+      const current = state.scores.get(id)?.get(state.scorer)?.score;
+      saveScore(id, current === n ? null : n);
+    });
+  });
+  body.querySelectorAll(".scorer-note[data-note-id]").forEach((input) => {
+    input.addEventListener("blur", () => {
+      const id = input.getAttribute("data-note-id");
+      const existing = state.scores.get(id)?.get(state.scorer)?.notes || "";
+      if (input.value === existing) return;
+      saveNote(id, input.value);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    });
+  });
+  body.querySelectorAll("[data-modal-photo-dir]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const photos = photosFromRow(r);
+      if (photos.length < 2) return;
+      const dir = Number(btn.getAttribute("data-modal-photo-dir"));
+      state.modalPhotoIndex = (state.modalPhotoIndex + dir + photos.length) % photos.length;
+      const img = document.getElementById("modal-hero-img");
+      const counter = document.getElementById("modal-photo-counter");
+      if (img) img.src = photos[state.modalPhotoIndex];
+      if (counter) counter.textContent = `${state.modalPhotoIndex + 1} / ${photos.length}`;
+    });
+  });
 }
 
 function render() {
@@ -1488,23 +1733,14 @@ function render() {
   grid.querySelectorAll("[data-toggle]").forEach((el) => {
     el.addEventListener("click", (e) => {
       // Ignore clicks that originated on interactive child elements.
-      if (e.target.closest("a, button, select, input, .heart-btn, .star[data-score]")) return;
-      const id = el.getAttribute("data-toggle");
-      if (state.openIds.has(id)) state.openIds.delete(id); else state.openIds.add(id);
-      render();
+      if (e.target.closest("a, button, select, input, .heart-btn")) return;
+      openModal(el.getAttribute("data-toggle"));
     });
   });
   grid.querySelectorAll(".notes-btn[data-notes-id]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const id = btn.getAttribute("data-notes-id");
-      const wasOpen = state.openIds.has(id);
-      if (!wasOpen) state.openIds.add(id);
-      render();
-      if (!wasOpen) {
-        const card = grid.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
-        card?.querySelector(".scorer-note[data-note-id]")?.focus();
-      }
+      openModal(btn.getAttribute("data-notes-id"), { focusNote: true });
     });
   });
   grid.querySelectorAll(".heart-btn[data-heart-id]").forEach((btn) => {
@@ -1544,26 +1780,8 @@ function render() {
       setStatus(id, value);
     });
   });
-  grid.querySelectorAll(".star[data-score]").forEach((star) => {
-    star.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const id = star.getAttribute("data-id");
-      const n = Number(star.getAttribute("data-score"));
-      const current = state.scores.get(id)?.get(state.scorer)?.score;
-      saveScore(id, current === n ? null : n);
-    });
-  });
-  grid.querySelectorAll(".scorer-note[data-note-id]").forEach((input) => {
-    input.addEventListener("blur", () => {
-      const id = input.getAttribute("data-note-id");
-      const existing = state.scores.get(id)?.get(state.scorer)?.notes || "";
-      if (input.value === existing) return;
-      saveNote(id, input.value);
-    });
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
-    });
-  });
+
+  renderModal();
 }
 
 const MAX_MIN_OPTIONS = [
@@ -1747,9 +1965,17 @@ wireControls();
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (state.modalId != null) { closeModal(); return; }
       closeFilterPanel();
       closeTravelDrawer();
     }
+  });
+
+  document.getElementById("modal-close").addEventListener("click", closeModal);
+  document.getElementById("modal-backdrop").addEventListener("click", closeModal);
+  document.getElementById("listing-modal").addEventListener("click", (e) => {
+    // Click outside the modal-card (i.e. on the modal padding area) closes it.
+    if (!e.target.closest("#modal-card")) closeModal();
   });
 
   const positionTravelPopover = () => {
