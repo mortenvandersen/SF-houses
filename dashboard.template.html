@@ -303,6 +303,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 22px;
+    align-items: start;
   }
 
   .card {
@@ -332,6 +333,45 @@
     color: rgba(11, 37, 69, 0.18);
   }
   .card-photo .placeholder-icon svg { width: 56px; height: 56px; }
+
+  .photo-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 32px; height: 32px;
+    background: rgba(255, 255, 255, 0.92);
+    border: none; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(11, 37, 69, 0.18);
+    opacity: 0; transition: opacity 120ms ease, transform 120ms ease;
+    color: var(--text);
+  }
+  .card:hover .photo-nav { opacity: 1; }
+  .photo-nav:hover { transform: translateY(-50%) scale(1.06); }
+  .photo-nav.prev { left: 10px; }
+  .photo-nav.next { right: 10px; }
+  .photo-nav svg { width: 16px; height: 16px; }
+  .photo-nav[disabled] { display: none; }
+
+  .photo-counter {
+    position: absolute; bottom: 10px; right: 10px;
+    background: rgba(11, 37, 69, 0.72);
+    color: #fff;
+    font-size: 11px; font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .photo-dots {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 4px;
+    pointer-events: none;
+  }
+  .photo-dots .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .photo-dots .dot.is-on { background: #fff; }
 
   .status-pill {
     position: absolute; top: 12px; left: 12px;
@@ -462,11 +502,12 @@
   .commute-grid {
     display: grid;
     grid-template-columns: 1fr repeat(3, auto);
-    gap: 4px 12px;
-    font-size: 12px;
+    gap: 3px 10px;
+    font-size: 10.5px;
     align-items: baseline;
+    line-height: 1.35;
   }
-  .commute-grid .h { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .commute-grid .h { color: var(--muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; }
   .commute-grid .v { font-variant-numeric: tabular-nums; text-align: right; }
   .commute-grid .v.na { color: #aab8cc; }
 
@@ -740,6 +781,8 @@ const state = {
   flags: new Map(),
   // listing_id -> bool (local-only for now)
   hearts: new Set(),
+  // listing_id -> int (current photo index in carousel)
+  photoIndex: new Map(),
 };
 
 async function loadScores() {
@@ -1107,7 +1150,7 @@ function commuteFullGrid(r) {
       const t = num(r, `${d} - ${mode} Time (min)`);
       const km = num(r, `${d} - ${mode} Distance (km)`);
       if (t == null) return `<div class="v na">—</div>`;
-      const kmStr = km != null ? ` <span style="color:var(--muted);font-size:11px">(${fmtKm(km)} km)</span>` : "";
+      const kmStr = km != null ? ` <span style="color:var(--muted);font-size:9.5px">(${fmtKm(km)} km)</span>` : "";
       return `<div class="v">${fmtMin(t)} min${kmStr}</div>`;
     };
     return `
@@ -1327,7 +1370,7 @@ function specsLine(r) {
   return `<div class="specs-line">${parts.join("")}</div>`;
 }
 
-function photoFromRow(r) {
+function photosFromRow(r) {
   // Tolerant of multiple future column shapes; activates once the second scrape adds photos.
   const candidates = [
     r["Photos"], r["Photo URLs"], r["Image URL"], r["Image URLs"],
@@ -1335,21 +1378,27 @@ function photoFromRow(r) {
   ];
   for (const v of candidates) {
     if (!v) continue;
-    if (Array.isArray(v) && v.length) return String(v[0]);
+    if (Array.isArray(v) && v.length) return v.map(String).filter(Boolean);
     const s = String(v).trim();
     if (!s) continue;
     if (s.startsWith("[")) {
-      try { const arr = JSON.parse(s); if (Array.isArray(arr) && arr.length) return String(arr[0]); }
-      catch (_e) {}
+      try {
+        const arr = JSON.parse(s);
+        if (Array.isArray(arr) && arr.length) return arr.map(String).filter(Boolean);
+      } catch (_e) {}
     }
-    // Comma-separated list?
-    const first = s.split(",")[0].trim();
-    if (first.startsWith("http")) return first;
-    if (s.startsWith("http")) return s;
+    if (s.includes(",")) {
+      const list = s.split(",").map((x) => x.trim()).filter((x) => x.startsWith("http"));
+      if (list.length) return list;
+    }
+    if (s.startsWith("http")) return [s];
   }
   // Fallback to scraped extras
   const extras = getExtras(r);
-  return extras?.photos?.[0]?.medium || null;
+  if (extras?.photos?.length) {
+    return extras.photos.map((p) => p.medium || p.large || p.small).filter(Boolean);
+  }
+  return [];
 }
 
 function renderCard(r) {
@@ -1364,10 +1413,26 @@ function renderCard(r) {
   const dimClass = (status === "off_market" || status === "not_interesting") ? " is-dim" : "";
   const isFavorite = state.hearts.has(r._id);
 
-  const photoUrl = photoFromRow(r);
-  const photoHtml = photoUrl
-    ? `<img src="${escapeHtml(photoUrl)}" alt="listing photo" loading="lazy">`
-    : `<div class="placeholder-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v11a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></div>`;
+  const photos = photosFromRow(r);
+  const photoIdx = Math.min(state.photoIndex.get(r._id) || 0, Math.max(photos.length - 1, 0));
+  const idAttr = escapeHtml(r._id);
+  let photoHtml;
+  if (!photos.length) {
+    photoHtml = `<div class="placeholder-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v11a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></div>`;
+  } else {
+    const cur = photos[photoIdx];
+    const showNav = photos.length > 1;
+    const navHtml = showNav ? `
+      <button type="button" class="photo-nav prev" data-photo-id="${idAttr}" data-dir="-1" aria-label="Previous photo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button type="button" class="photo-nav next" data-photo-id="${idAttr}" data-dir="1" aria-label="Next photo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="photo-counter" data-photo-counter="${idAttr}">${photoIdx + 1} / ${photos.length}</div>
+    ` : "";
+    photoHtml = `<img src="${escapeHtml(cur)}" alt="listing photo" loading="lazy" data-photo-img="${idAttr}">${navHtml}`;
+  }
 
   const priceStr = fmtPrice(r._priceValue);
   const isRental = r["Type"] === "APARTMENT" || r._priceValue != null && r._priceValue < 50000;
@@ -1449,6 +1514,25 @@ function render() {
       if (state.hearts.has(id)) state.hearts.delete(id); else state.hearts.add(id);
       btn.classList.toggle("is-on");
       btn.setAttribute("aria-pressed", state.hearts.has(id) ? "true" : "false");
+    });
+  });
+  grid.querySelectorAll(".photo-nav[data-photo-id]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute("data-photo-id");
+      const dir = Number(btn.getAttribute("data-dir"));
+      const row = visible.find((r) => r._id === id);
+      if (!row) return;
+      const photos = photosFromRow(row);
+      if (photos.length < 2) return;
+      const cur = state.photoIndex.get(id) || 0;
+      const next = (cur + dir + photos.length) % photos.length;
+      state.photoIndex.set(id, next);
+      const card = grid.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+      const img = card?.querySelector(`[data-photo-img="${CSS.escape(id)}"]`);
+      if (img) img.src = photos[next];
+      const counter = card?.querySelector(`[data-photo-counter="${CSS.escape(id)}"]`);
+      if (counter) counter.textContent = `${next + 1} / ${photos.length}`;
     });
   });
   grid.querySelectorAll(".status-select[data-status-id]").forEach((sel) => {
