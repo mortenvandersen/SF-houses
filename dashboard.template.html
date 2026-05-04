@@ -423,6 +423,19 @@
   .heart-btn svg { width: 18px; height: 18px; stroke: #5c7a99; fill: none; stroke-width: 2; }
   .heart-btn.is-on svg { stroke: var(--danger); fill: var(--danger); }
 
+  .zillow-btn {
+    position: absolute; top: 10px; right: 54px;
+    width: 34px; height: 34px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(11, 37, 69, 0.10);
+    color: var(--text); text-decoration: none;
+    transition: transform 80ms ease;
+  }
+  .zillow-btn:hover { transform: scale(1.06); text-decoration: none; }
+  .zillow-btn svg { width: 16px; height: 16px; stroke: #5c7a99; fill: none; stroke-width: 2; }
+
   .card-body {
     padding: 14px 16px 16px;
     display: flex; flex-direction: column; gap: 8px;
@@ -1547,6 +1560,7 @@ function renderCard(r) {
   const status = activeStatus(fl);
   const dimClass = (status === "off_market" || status === "not_interesting") ? " is-dim" : "";
   const isFavorite = state.hearts.has(r._id);
+  const url = r["Listing URL"] || "";
 
   const photos = photosFromRow(r);
   const photoIdx = Math.min(state.photoIndex.get(r._id) || 0, Math.max(photos.length - 1, 0));
@@ -1579,6 +1593,9 @@ function renderCard(r) {
     <div class="card-photo" data-toggle="${idAttr}">
       ${photoHtml}
       ${statusPill(status)}
+      ${url ? `<a class="zillow-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="View on Zillow" title="View on Zillow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>` : ""}
       <button type="button" class="heart-btn${isFavorite ? " is-on" : ""}" data-heart-id="${idAttr}" aria-label="Favorite" aria-pressed="${isFavorite}">
         <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
       </button>
@@ -1693,7 +1710,6 @@ function renderModal() {
       ${description(r)}
     </div>
     <div class="modal-actions">
-      ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow ↗</a>` : ""}
       ${mapLink(r)}
     </div>
   `;
