@@ -53,7 +53,7 @@
     margin-top: 14px; flex-wrap: wrap;
   }
   .search-wrap {
-    flex: 1; min-width: 220px;
+    flex: 1; min-width: 200px; max-width: 420px;
     position: relative;
   }
   @media (max-width: 640px) {
@@ -90,6 +90,24 @@
   .tool-btn:hover { border-color: var(--accent); }
   .tool-btn.is-active { border-color: var(--accent); background: var(--panel-2); }
   .tool-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .review-toggle.is-active {
+    background: #e6f7e1; border-color: #2e8b57; color: #2e8b57;
+    font-weight: 600;
+  }
+  .review-toggle.is-active:hover { border-color: #2e8b57; }
+
+  .scorer-wrap { position: relative; }
+  .scorer-wrap select.tool-btn {
+    appearance: none; -webkit-appearance: none;
+    padding-right: 30px;
+    min-width: 130px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b2545' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+  }
+  .scorer-wrap select.tool-btn:focus { outline: none; border-color: var(--accent); }
 
   .sort-wrap { position: relative; }
   .sort-wrap select.tool-btn {
@@ -725,6 +743,17 @@
     <div class="search-wrap">
       <input id="f-search" type="text" placeholder="Search by street, city, zip, neighborhood, region…">
     </div>
+    <button type="button" class="tool-btn review-toggle" id="btn-review" aria-pressed="false" title="Show only listings flagged Review Together">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Review Together
+    </button>
+    <div class="scorer-wrap">
+      <select class="tool-btn" id="scorer-name" aria-label="Who am I">
+        <option value="">I am — pick…</option>
+        <option value="Morten">I am Morten</option>
+        <option value="Victoria">I am Victoria</option>
+      </select>
+    </div>
     <button type="button" class="tool-btn" id="btn-filters" aria-expanded="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
       Filters
@@ -816,13 +845,6 @@
             <option value="1">1+</option>
             <option value="2">2+</option>
             <option value="3">3+</option>
-          </select>
-        </label>
-        <label style="grid-column: span 2">I am
-          <select id="scorer-name">
-            <option value="">— (read only)</option>
-            <option value="Morten">Morten</option>
-            <option value="Victoria">Victoria</option>
           </select>
         </label>
       </div>
@@ -1847,6 +1869,18 @@ function syncStatusRadios() {
     r.checked = (r.value === (state.statusFilter || "all"));
   });
 }
+function syncReviewToggle() {
+  const btn = document.getElementById("btn-review");
+  const on = state.statusFilter === "review_together";
+  btn.classList.toggle("is-active", on);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+function setStatusFilter(value) {
+  state.statusFilter = value || "all";
+  syncStatusRadios();
+  syncReviewToggle();
+  render();
+}
 function syncFilterInputs() {
   document.getElementById("f-price-min").value = state.priceMin ?? "";
   document.getElementById("f-price-max").value = state.priceMax ?? "";
@@ -1856,6 +1890,7 @@ function syncFilterInputs() {
   syncRatingChips();
   syncRegionRadios();
   syncStatusRadios();
+  syncReviewToggle();
 }
 
 function wireControls() {
@@ -1889,8 +1924,12 @@ function wireControls() {
   // Status radios.
   document.getElementById("status-radios").addEventListener("change", (e) => {
     if (e.target.name !== "status") return;
-    state.statusFilter = e.target.value;
-    render();
+    setStatusFilter(e.target.value);
+  });
+
+  // "Review Together" toolbar shortcut.
+  document.getElementById("btn-review").addEventListener("click", () => {
+    setStatusFilter(state.statusFilter === "review_together" ? "all" : "review_together");
   });
 
   // Rating chips.
