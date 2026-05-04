@@ -902,14 +902,14 @@ const _storedScorer = (localStorage.getItem("sf-scorer") || "").trim();
 const state = {
   search: "",
   region: "",
-  priceMin: null,
+  priceMin: 6500,
   priceMax: null,
   minBeds: null,
   minBaths: null,
   minStars: null,
   // destination -> { mode: "Drive"|"Transit"|"Walk", maxMinutes: number|null }
   commute: {},
-  sort: "price-asc",
+  sort: "date-desc",
   statusFilter: "all",
   modalId: null,
   // Photo index for the open modal (separate from per-tile carousel state).
@@ -1844,7 +1844,7 @@ function populateCommuteRows() {
 
 const FILTER_DEFAULTS = {
   search: "",
-  priceMin: null,
+  priceMin: 6500,
   priceMax: null,
   minBeds: null,
   minBaths: null,
