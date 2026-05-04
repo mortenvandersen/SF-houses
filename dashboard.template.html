@@ -106,17 +106,45 @@
   }
   .add-btn:hover { background: #163d7a; border-color: #163d7a; }
 
-  .controls {
+  .travel-popover {
+    position: absolute;
+    z-index: 30;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(11, 37, 69, 0.18);
+    padding: 14px 16px;
+    min-width: 360px;
     display: none;
   }
-  .controls.is-open {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 6px 10px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
+  .travel-popover.is-open { display: block; }
+  .travel-popover h3 {
+    margin: 0 0 10px;
+    font-size: 13px; font-weight: 600; color: var(--text);
   }
+  .travel-popover .commute-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1.4fr) 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .travel-popover .commute-row:last-child { margin-bottom: 0; }
+  .travel-popover .commute-row .dest-label {
+    font-size: 13px; color: var(--text); font-weight: 500;
+  }
+  .travel-popover .commute-row select {
+    width: 100%; height: 36px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 0 30px 0 10px; font-size: 13px; outline: none;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b2545' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px;
+  }
+  .travel-popover .commute-row select:focus { border-color: var(--accent); }
 
   .panel-backdrop {
     position: fixed; inset: 0;
@@ -536,29 +564,6 @@
   .card.is-dim { opacity: 0.6; }
   .card.is-dim:hover { opacity: 1; }
 
-  .control.commute-filters {
-    grid-column: span 2;
-    gap: 2px;
-  }
-  .commute-row {
-    display: grid;
-    grid-template-columns: minmax(90px, 1fr) 1fr 1fr;
-    gap: 4px;
-    align-items: center;
-  }
-  .commute-row .dest-label {
-    font-size: 10px; color: var(--text); font-weight: 600;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .commute-row select {
-    background: var(--panel); color: var(--text); border: 1px solid var(--border);
-    border-radius: 5px; padding: 2px 5px; font-size: 11px; outline: none;
-    width: 100%; height: 22px;
-  }
-  .commute-row select:focus { border-color: var(--accent); }
-  @media (max-width: 600px) {
-    .control.commute-filters { grid-column: span 1; }
-  }
 </style>
 </head>
 <body>
@@ -592,8 +597,9 @@
       Travel Time
     </button>
   </div>
-  <div class="controls" id="controls-panel">
-    <div class="control commute-filters" id="commute-filters"></div>
+  <div class="travel-popover" id="travel-popover" role="dialog" aria-label="Travel time filters" aria-hidden="true">
+    <h3>Travel time</h3>
+    <div id="commute-filters"></div>
   </div>
 </header>
 
@@ -1605,7 +1611,7 @@ wireControls();
   const fpanel = document.getElementById("filter-panel");
   const backdrop = document.getElementById("panel-backdrop");
   const closeBtn = document.getElementById("filter-close");
-  const travelDrawer = document.getElementById("controls-panel");
+  const travelPop = document.getElementById("travel-popover");
 
   const openFilter = () => {
     fpanel.classList.add("is-open");
@@ -1637,21 +1643,44 @@ wireControls();
     }
   });
 
-  // Travel Time still uses the legacy drawer for now (replaced in Chunk 5).
+  const positionTravelPopover = () => {
+    const rect = travelBtn.getBoundingClientRect();
+    travelPop.style.top = (window.scrollY + rect.bottom + 8) + "px";
+    // Anchor the popover's right edge to the button's right edge, but clamp to viewport.
+    const popWidth = travelPop.offsetWidth || 360;
+    const desiredLeft = window.scrollX + rect.right - popWidth;
+    const minLeft = window.scrollX + 12;
+    travelPop.style.left = Math.max(desiredLeft, minLeft) + "px";
+  };
   const closeTravelDrawer = () => {
-    travelDrawer.classList.remove("is-open");
+    travelPop.classList.remove("is-open");
+    travelPop.setAttribute("aria-hidden", "true");
     travelBtn.classList.remove("is-active");
     travelBtn.setAttribute("aria-expanded", "false");
   };
-  travelBtn.addEventListener("click", () => {
-    if (travelDrawer.classList.contains("is-open")) {
-      closeTravelDrawer();
-    } else {
-      travelDrawer.classList.add("is-open");
-      travelBtn.classList.add("is-active");
-      travelBtn.setAttribute("aria-expanded", "true");
-    }
+  const openTravelDrawer = () => {
+    travelPop.classList.add("is-open");
+    travelPop.setAttribute("aria-hidden", "false");
+    travelBtn.classList.add("is-active");
+    travelBtn.setAttribute("aria-expanded", "true");
+    positionTravelPopover();
+  };
+  travelBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (travelPop.classList.contains("is-open")) closeTravelDrawer(); else openTravelDrawer();
   });
+  // Close when clicking outside the popover.
+  document.addEventListener("click", (e) => {
+    if (!travelPop.classList.contains("is-open")) return;
+    if (travelPop.contains(e.target) || travelBtn.contains(e.target)) return;
+    closeTravelDrawer();
+  });
+  window.addEventListener("resize", () => {
+    if (travelPop.classList.contains("is-open")) positionTravelPopover();
+  });
+  window.addEventListener("scroll", () => {
+    if (travelPop.classList.contains("is-open")) positionTravelPopover();
+  }, { passive: true });
 })();
 
 render();
