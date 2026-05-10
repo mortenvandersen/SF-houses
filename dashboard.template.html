@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SF Rentals Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
   :root {
     --bg: #eef3fb;
@@ -316,6 +317,63 @@
   .chip.active { background: var(--accent); color: #ffffff; border-color: var(--accent); font-weight: 600; }
 
   main { padding: 22px 28px 60px; }
+
+  .view-tabs {
+    display: inline-flex; height: 42px;
+    background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden;
+  }
+  .view-tabs button {
+    background: transparent; border: none; cursor: pointer;
+    padding: 0 14px; font-size: 14px; font-weight: 500; color: var(--text);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background 80ms, color 80ms;
+  }
+  .view-tabs button + button { border-left: 1px solid var(--border); }
+  .view-tabs button:hover { background: var(--panel-2); }
+  .view-tabs button.is-active { background: var(--accent); color: #fff; }
+  .view-tabs button.is-active + button { border-left-color: var(--accent); }
+  .view-tabs button.is-active:hover { background: var(--accent); }
+  .view-tabs svg { width: 16px; height: 16px; }
+
+  #map-view {
+    display: none;
+    height: calc(100vh - 220px); min-height: 480px;
+    border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden;
+    background: var(--panel-2);
+  }
+  body.is-map-view #grid { display: none; }
+  body.is-map-view #map-view { display: block; }
+  @media (max-width: 640px) {
+    #map-view { height: calc(100vh - 260px); border-radius: 10px; }
+  }
+
+  .price-marker .pm-pin {
+    background: var(--accent); color: #fff;
+    border: 2px solid #fff; border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(11, 37, 69, 0.3);
+    transform: translateY(-2px);
+    cursor: pointer;
+  }
+  .price-marker.is-dim .pm-pin { background: #8aa0bd; }
+  .price-marker .pm-pin:hover { background: var(--accent-strong); }
+
+  .map-popup .mp-title { font-weight: 600; font-size: 13px; color: var(--accent-strong); margin-bottom: 2px; }
+  .map-popup .mp-sub { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .map-popup .mp-price { font-weight: 700; font-size: 14px; color: var(--accent-strong); margin-bottom: 8px; }
+  .map-popup .mp-actions { display: flex; gap: 6px; }
+  .map-popup .mp-actions a, .map-popup .mp-actions button {
+    font-size: 12px; padding: 5px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    cursor: pointer; text-decoration: none; font-family: inherit;
+  }
+  .map-popup .mp-actions .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .map-popup .mp-actions .primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
 
   .grid {
     display: grid;
@@ -753,6 +811,16 @@
     </div>
   </div>
   <div class="toolbar">
+    <div class="view-tabs" role="tablist" aria-label="View">
+      <button type="button" class="is-active" data-view="list" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        List
+      </button>
+      <button type="button" data-view="map" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        Map
+      </button>
+    </div>
     <div class="search-wrap">
       <input id="f-search" type="text" placeholder="Search by street, city, zip, neighborhood, region…">
     </div>
@@ -887,9 +955,11 @@
 
 <main>
   <div class="grid" id="grid"></div>
+  <div id="map-view" aria-hidden="true"></div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 const RAW_DATA = /*__DATA_PLACEHOLDER__*/null;
 const META = /*__META_PLACEHOLDER__*/null;
@@ -928,6 +998,7 @@ const state = {
   // Photo index for the open modal (separate from per-tile carousel state).
   modalPhotoIndex: 0,
   scorer: SCORERS.includes(_storedScorer) ? _storedScorer : "",
+  view: "list",
   // listing_id -> { scorer -> { score, notes, updated_at } }
   scores: new Map(),
   // listing_url -> { description, scraped_at }
@@ -1752,12 +1823,94 @@ function renderModal() {
   });
 }
 
+const mapState = { map: null, layer: null };
+
+function ensureMap() {
+  if (mapState.map) return mapState.map;
+  const el = document.getElementById("map-view");
+  mapState.map = L.map(el, { scrollWheelZoom: true }).setView([37.77, -122.42], 11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(mapState.map);
+  mapState.layer = L.layerGroup().addTo(mapState.map);
+  el.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-map-open]");
+    if (!btn) return;
+    mapState.map.closePopup();
+    openModal(btn.getAttribute("data-map-open"));
+  });
+  return mapState.map;
+}
+
+function shortPriceLabel(p) {
+  if (p == null) return "—";
+  if (p >= 10000) return "$" + Math.round(p / 1000) + "k";
+  if (p >= 1000) return "$" + (p / 1000).toFixed(1) + "k";
+  return "$" + Math.round(p);
+}
+
+function renderMap(visible) {
+  if (!window.L) return;
+  const map = ensureMap();
+  mapState.layer.clearLayers();
+  const points = [];
+  for (const r of visible) {
+    const lat = num(r, "Latitude"), lng = num(r, "Longitude");
+    if (lat == null || lng == null) continue;
+    const status = activeStatus(state.flags.get(r._id));
+    const dim = (status === "off_market" || status === "not_interesting");
+    const icon = L.divIcon({
+      className: "price-marker" + (dim ? " is-dim" : ""),
+      html: `<div class="pm-pin">${shortPriceLabel(r._priceValue)}</div>`,
+      iconSize: null,
+      iconAnchor: [24, 22],
+    });
+    const marker = L.marker([lat, lng], { icon }).addTo(mapState.layer);
+    const short = r["Short Address"] || r["Address"] || "(no address)";
+    const region = r["_region"] && r["_region"] !== "Other" ? r["_region"] : "";
+    const locale = region || (r["City"] || "");
+    const url = r["Listing URL"] || "";
+    marker.bindPopup(
+      `<div class="map-popup">
+         <div class="mp-title">${escapeHtml(short)}</div>
+         ${locale ? `<div class="mp-sub">${escapeHtml(locale)}</div>` : ""}
+         <div class="mp-price">${fmtPrice(r._priceValue)}</div>
+         <div class="mp-actions">
+           <button type="button" class="primary" data-map-open="${escapeHtml(r._id)}">Details</button>
+           ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Zillow</a>` : ""}
+         </div>
+       </div>`
+    );
+    points.push([lat, lng]);
+  }
+  if (points.length) {
+    map.fitBounds(points, { padding: [40, 40], maxZoom: 14 });
+  }
+}
+
+function setView(view) {
+  state.view = view;
+  document.body.classList.toggle("is-map-view", view === "map");
+  document.querySelectorAll('.view-tabs button[data-view]').forEach((b) => {
+    const on = b.getAttribute("data-view") === view;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  if (view === "map") {
+    ensureMap();
+    setTimeout(() => mapState.map && mapState.map.invalidateSize(), 0);
+    render();
+  }
+}
+
 function render() {
   const visible = applyFilters();
   renderStats(visible);
   const grid = document.getElementById("grid");
   const countEl = document.getElementById("count-line");
   countEl.textContent = `${visible.length} listing${visible.length === 1 ? "" : "s"} found`;
+  if (state.view === "map") renderMap(visible);
   if (!visible.length) {
     grid.innerHTML = `<div class="empty-state">No listings match your filters.</div>`;
     return;
@@ -2010,6 +2163,10 @@ wireControls();
 
   filtersBtn.addEventListener("click", () => {
     if (fpanel.classList.contains("is-open")) closeFilterPanel(); else openFilter();
+  });
+
+  document.querySelectorAll('.view-tabs button[data-view]').forEach((b) => {
+    b.addEventListener("click", () => setView(b.getAttribute("data-view")));
   });
   closeBtn.addEventListener("click", closeFilterPanel);
   backdrop.addEventListener("click", () => {
