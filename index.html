@@ -1782,6 +1782,7 @@ function renderModal() {
     </div>
     <div class="modal-actions">
       ${mapLink(r)}
+      ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="link-btn">Zillow</a>` : ""}
     </div>
   `;
 
