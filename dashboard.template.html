@@ -466,6 +466,17 @@
   .status-pill.s-off_market { color: var(--danger); }
   .status-pill.s-review_together { color: #2e8b57; }
 
+  .age-pill {
+    position: absolute; top: 44px; left: 12px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 11px; font-weight: 600;
+    color: #8a6a1f;
+    box-shadow: 0 1px 3px rgba(11,37,69,0.08);
+    backdrop-filter: blur(4px);
+  }
+
   .heart-btn {
     position: absolute; top: 10px; right: 10px;
     width: 34px; height: 34px;
@@ -908,6 +919,13 @@
     </div>
 
     <div class="group">
+      <div class="label">Listing age</div>
+      <div class="radio-list" aria-label="Listing age">
+        <label class="radio-row"><input type="checkbox" id="f-hide-old"> Hide old listings (&gt;3 months)</label>
+      </div>
+    </div>
+
+    <div class="group">
       <div class="label">More</div>
       <div class="extras-grid">
         <label>Beds
@@ -994,6 +1012,7 @@ const state = {
   sort: "date-desc",
   // Set of selected status keys; empty set = show all.
   statusFilters: new Set(),
+  hideOld: false,
   modalId: null,
   // Photo index for the open modal (separate from per-tile carousel state).
   modalPhotoIndex: 0,
@@ -1261,6 +1280,18 @@ async function saveNote(listingId, notes) {
 // Build stable id per row (URL or fallback to index).
 RAW_DATA.forEach((r, i) => { r._id = r["Listing URL"] || ("row-" + i); });
 
+// Listings older than 3 months (by listed date, falling back to scrape date) are
+// flagged "old". Rows without any date are treated as not-old so they aren't
+// silently hidden when the user toggles the filter on.
+const OLD_LISTING_DAYS = 90;
+function isOldListing(r) {
+  const d = r._sortDate;
+  if (!d) return false;
+  const t = Date.parse(d);
+  if (Number.isNaN(t)) return false;
+  return (Date.now() - t) > OLD_LISTING_DAYS * 86400000;
+}
+
 function computeStats(rows) {
   const prices = rows.map((r) => r._priceValue).filter((v) => v != null);
   prices.sort((a, b) => a - b);
@@ -1306,6 +1337,7 @@ function applyFilters() {
       const rowStatus = activeStatus(state.flags.get(r._id)) || "available";
       if (!state.statusFilters.has(rowStatus)) return false;
     }
+    if (state.hideOld && isOldListing(r)) return false;
     for (const dest of META.destinations) {
       const cfg = state.commute[dest];
       if (!cfg || cfg.maxMinutes == null) continue;
@@ -1664,6 +1696,7 @@ function renderCard(r) {
     <div class="card-photo" data-toggle="${idAttr}">
       ${photoHtml}
       ${statusPill(status)}
+      ${isOldListing(r) ? `<span class="age-pill">Old listing</span>` : ""}
       ${url ? `<a class="zillow-btn" href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="View on Zillow" title="View on Zillow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       </a>` : ""}
@@ -2017,6 +2050,7 @@ function defaultFilters() {
     minStars: null,
     region: "",
     statusFilters: new Set(),
+    hideOld: false,
   };
 }
 
@@ -2048,6 +2082,7 @@ function syncFilterInputs() {
   document.getElementById("f-beds").value = state.minBeds == null ? "" : String(state.minBeds);
   document.getElementById("f-baths").value = state.minBaths == null ? "" : String(state.minBaths);
   document.getElementById("scorer-name").value = state.scorer || "";
+  document.getElementById("f-hide-old").checked = !!state.hideOld;
   syncRatingChips();
   syncRegionRadios();
   syncStatusChecks();
@@ -2079,6 +2114,12 @@ function wireControls() {
   regionList.addEventListener("change", (e) => {
     if (e.target.name !== "region") return;
     state.region = e.target.value;
+    render();
+  });
+
+  // Hide-old-listings toggle.
+  document.getElementById("f-hide-old").addEventListener("change", (e) => {
+    state.hideOld = e.target.checked;
     render();
   });
 
