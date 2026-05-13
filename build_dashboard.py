@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 INPUT_CSV = "listings_with_distances.csv"
+SEARCHES_DIR = Path("searches")
 TEMPLATE_HTML = "dashboard.template.html"
 OUTPUT_HTML = "index.html"
 
@@ -149,10 +150,35 @@ def listed_date_from(scraped_iso: str | None, days_on_zillow: int | None) -> str
     return d.isoformat()
 
 
+def load_first_seen_dates() -> dict[str, str]:
+    """Scan all CSVs in searches/ and return the earliest Date Scraped per
+    Listing URL and per Address. Used to pin a listing's effective scrape
+    date to when it was *first* seen, rather than the latest re-scrape."""
+    seen: dict[str, str] = {}
+    if not SEARCHES_DIR.exists():
+        return seen
+    for path in sorted(SEARCHES_DIR.glob("*.csv")):
+        with open(path, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                scraped = parse_iso_date(row.get("Date Scraped", ""))
+                if not scraped:
+                    continue
+                for raw_key in (row.get("Listing URL"), row.get("Address")):
+                    key = (raw_key or "").strip()
+                    if not key:
+                        continue
+                    prev = seen.get(key)
+                    if prev is None or scraped < prev:
+                        seen[key] = scraped
+    return seen
+
+
 def load_rows() -> list[dict]:
     with open(INPUT_CSV, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
+
+    first_seen = load_first_seen_dates()
 
     cleaned: list[dict] = []
     for row in rows:
@@ -160,12 +186,19 @@ def load_rows() -> list[dict]:
         out["_priceValue"] = parse_price(row.get("Price", ""))
         out["_ppsfValue"] = parse_price(row.get("Price Per Sq. Ft.", ""))
         out["_region"] = assign_region(row)
-        scraped = parse_iso_date(row.get("Date Scraped", ""))
+        own_scraped = parse_iso_date(row.get("Date Scraped", ""))
+        url = (row.get("Listing URL") or "").strip()
+        addr = (row.get("Address") or "").strip()
+        scraped = first_seen.get(url) or first_seen.get(addr) or own_scraped
         days = parse_days_on_zillow(row.get("Days on Zillow", ""))
-        listed = listed_date_from(scraped, days)
+        listed = listed_date_from(own_scraped, days)
+        # Sort by the earliest evidence the listing was live, so a relisted
+        # ad we first saw months ago doesn't masquerade as fresh.
+        candidates = [d for d in (listed, scraped) if d]
+        sort_date = min(candidates) if candidates else None
         out["_scrapedDate"] = scraped
         out["_listedDate"] = listed
-        out["_sortDate"] = listed or scraped
+        out["_sortDate"] = sort_date
         for field in NUMERIC_FIELDS:
             if field in out:
                 out[f"_num:{field}"] = parse_number(out[field])
